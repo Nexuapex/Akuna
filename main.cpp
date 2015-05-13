@@ -9,44 +9,7 @@
 #include "assimp/scene.h"
 
 #include "a_geom.h"
-
-struct RGB
-{
-	float r;
-	float g;
-	float b;
-
-public:
-	RGB();
-	RGB(float r, float g, float b);
-};
-
-RGB::RGB()
-	: r(0.f)
-	, g(0.f)
-	, b(0.f)
-{
-}
-
-RGB::RGB(float const r, float const g, float const b)
-	: r(r)
-	, g(g)
-	, b(b)
-{
-}
-
-RGB& operator+=(RGB& lhs, RGB const rhs)
-{
-	lhs.r += rhs.r;
-	lhs.g += rhs.g;
-	lhs.b += rhs.b;
-	return lhs;
-}
-
-RGB operator*(RGB const rgb, float const s)
-{
-	return RGB(rgb.r * s, rgb.b * s, rgb.g * s);
-}
+#include "a_material.h"
 
 struct RGBE
 {
@@ -97,8 +60,10 @@ void write_rgbe(FILE* const out, int const width, int const height, RGB const im
 struct Scene
 {
 	uint32_t triangle_count;
-	uint32_t* indices;
+	uint32_t const* indices;
 	Vec3 const* vertices;
+	Material const* materials;
+	uint8_t const* material_indices;
 };
 
 Intersection intersect_scene(Ray const ray, Scene const& scene)
@@ -139,7 +104,9 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 	Intersection const intersect = intersect_scene(initial_ray, scene);
 	if (intersect.valid())
 	{
-		return RGB(1.f, 0.f, 0.f);
+		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
+		float const ambient = .1f;
+		return material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w) + material.diffuse * ambient;
 	}
 	else
 	{
@@ -154,6 +121,12 @@ int main(int const argc, char const* const argv[])
 
 	Scene scene = {};
 
+	Material const materials[] =
+	{
+		Material(RGB(0.f, 0.f, 0.f), RGB(1.f, 1.f, 1.f)),
+		Material(RGB(1.f, 1.f, 1.f), RGB(0.f, 0.f, 0.f)),
+	};
+
 	Assimp::Importer importer;
 	if (aiScene const* const imp_scene = importer.ReadFile("scene.nff", aiProcess_Triangulate | aiProcess_SortByPType))
 	{
@@ -161,14 +134,26 @@ int main(int const argc, char const* const argv[])
 		for (int i = 0; i < meshCount; ++i)
 		{
 			aiMesh const* const imp_mesh = imp_scene->mMeshes[i];
-			if (aiPrimitiveType_TRIANGLE == imp_mesh->mPrimitiveTypes)
+			if (aiPrimitiveType_TRIANGLE != imp_mesh->mPrimitiveTypes)
+				continue;
+
+			uint32_t const triangle_count = imp_mesh->mNumFaces;
+			uint32_t const index_count = 3 * triangle_count;
+			uint32_t* const indices = new uint32_t[index_count];
+			Vec3 const* const vertices = reinterpret_cast<Vec3 const*>(imp_mesh->mVertices);
+			uint8_t* const material_indices = new uint8_t[triangle_count];
+
+			for (uint32_t triangle_index = 0; triangle_index < triangle_count; ++triangle_index)
 			{
-				scene.triangle_count = imp_mesh->mNumFaces;
-				scene.indices = new uint32_t[scene.triangle_count * 3];
-				for (uint32_t triangle_index = 0; triangle_index < scene.triangle_count; ++triangle_index)
-					memcpy(scene.indices + triangle_index * 3, imp_mesh->mFaces[triangle_index].mIndices, sizeof(uint32_t) * 3);
-				scene.vertices = reinterpret_cast<Vec3 const*>(imp_mesh->mVertices);
+				memcpy(indices + 3 * triangle_index, imp_mesh->mFaces[triangle_index].mIndices, 3 * sizeof(uint32_t));
+				material_indices[triangle_index] = (0 == triangle_index) ? 0 : 1; // First triangle has a special material.
 			}
+
+			scene.triangle_count = triangle_count;
+			scene.indices = indices;
+			scene.vertices = vertices;
+			scene.materials = materials;
+			scene.material_indices = material_indices;
 		}
 	}
 	else
