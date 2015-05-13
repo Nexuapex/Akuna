@@ -114,6 +114,14 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 	}
 }
 
+struct Image
+{
+	static int const kWidth = 256;
+	static int const kHeight = 256;
+
+	RGB pixel[kWidth][kHeight];
+};
+
 int main(int const argc, char const* const argv[])
 {
 	(void)argc;
@@ -164,29 +172,27 @@ int main(int const argc, char const* const argv[])
 	std::mt19937 random_engine;
 	Vec3 const camera_position(0.f, 0.f, 0.f);
 
-	int const width = 256;
-	int const height = 256;
 	int const samples_per_pixel = 16;
 	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
 
-	RGB image[width][height] = {};
+	Image* const image = new Image;
 
-	for (int y = 0; y < height; ++y)
+	for (int y = 0; y < Image::kHeight; ++y)
 	{
-		for (int x = 0; x < width; ++x)
+		for (int x = 0; x < Image::kWidth; ++x)
 		{
 			for (int n = 0; n < samples_per_pixel; ++n)
 			{
-				CameraSample const camera_sample = random_camera_sample(x, y, width, height, random_engine);
+				CameraSample const camera_sample = random_camera_sample(x, y, Image::kWidth, Image::kHeight, random_engine);
 				RGB const sample = sample_image(camera_position, camera_sample, scene);
-				image[x][y] += sample * sample_weight;
+				image->pixel[x][y] += sample * sample_weight;
 			}
 		}
 	}
 
 	if (FILE* const out = fopen("test.hdr", "wb"))
 	{
-		write_rgbe(out, width, height, &image[0][0]);
+		write_rgbe(out, Image::kWidth, Image::kHeight, &image->pixel[0][0]);
 		fclose(out);
 	}
 	return 0;
