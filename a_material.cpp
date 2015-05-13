@@ -40,6 +40,12 @@ RGB& operator+=(RGB& lhs, RGB const rhs)
 	return lhs;
 }
 
+RGB& operator*=(RGB& lhs, RGB const rhs)
+{
+	lhs = lhs * rhs;
+	return lhs;
+}
+
 Material::Material(RGB diffuse, RGB emissive)
 	: diffuse(diffuse)
 	, emissive(emissive)

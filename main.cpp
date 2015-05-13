@@ -96,22 +96,69 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	return camera_sample;
 }
 
-RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, Scene const& scene)
+struct DistributionSample
 {
-	Vec3 const image_plane_position(camera_sample.x, camera_sample.y, 1.f);
-	Ray const initial_ray(camera_position, image_plane_position);
+	Vec3 direction;
+	float contribution;
 
-	Intersection const intersect = intersect_scene(initial_ray, scene);
-	if (intersect.valid())
+public:
+	DistributionSample();
+};
+
+DistributionSample::DistributionSample()
+	: direction(0.f, 0.f, 0.f)
+	, contribution(0.f)
+{
+}
+
+DistributionSample random_hemisphere_sample(Vec3 const normal, std::mt19937& random_engine)
+{
+	std::uniform_real_distribution<float> distrib(-1.f, 1.f); // [-1, 1)
+
+	Vec3 const dir = normalize(Vec3(distrib(random_engine), distrib(random_engine), distrib(random_engine)));
+	float const cos_theta = dot(dir, normal);
+	float const inv_pi = 0.318309886183790671538f;
+
+	DistributionSample distribution_sample;
+	distribution_sample.direction = dir;
+	distribution_sample.contribution = (cos_theta > 0.f) ? cos_theta * inv_pi : 0.f;
+	return distribution_sample;
+}
+
+RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, Scene const& scene, std::mt19937& random_engine)
+{
+	RGB color;
+
+	Vec3 const image_plane_position(camera_sample.x, camera_sample.y, 1.f);
+
+	int path_length = 0;
+	Ray ray(camera_position, image_plane_position);
+	RGB contribution(1.f, 1.f, 1.f);
+
+	do
 	{
+		++path_length;
+
+		Intersection const intersect = intersect_scene(ray, scene);
+		if (!intersect.valid())
+			break; // Terminate the path.
+
+		// Implicit path.
+		//
+
 		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
-		float const ambient = .1f;
-		return material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w) + material.diffuse * ambient;
-	}
-	else
-	{
-		return RGB();
-	}
+		RGB const emissive = material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w);
+		color += contribution * emissive;
+
+		// Extend the path.
+		//
+
+		DistributionSample const distribution_sample = random_hemisphere_sample(intersect.normal, random_engine);
+		ray = Ray(intersect.point, distribution_sample.direction);
+		contribution *= material.diffuse * distribution_sample.contribution;
+	} while (path_length <= 1);
+
+	return color;
 }
 
 struct Image
@@ -184,7 +231,7 @@ int main(int const argc, char const* const argv[])
 			for (int n = 0; n < samples_per_pixel; ++n)
 			{
 				CameraSample const camera_sample = random_camera_sample(x, y, Image::kWidth, Image::kHeight, random_engine);
-				RGB const sample = sample_image(camera_position, camera_sample, scene);
+				RGB const sample = sample_image(camera_position, camera_sample, scene, random_engine);
 				image->pixel[x][y] += sample * sample_weight;
 			}
 		}

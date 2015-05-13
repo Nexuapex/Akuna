@@ -19,6 +19,7 @@ RGB operator*(float s, RGB rgb);
 RGB operator*(RGB rgb, float s);
 
 RGB& operator+=(RGB& lhs, RGB rhs);
+RGB& operator*=(RGB& lhs, RGB rhs);
 
 struct Material
 {
