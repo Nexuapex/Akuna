@@ -1,4 +1,3 @@
-#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -97,7 +96,7 @@ void write_rgbe(FILE* const out, int const width, int const height, RGB const im
 
 struct Scene
 {
-	int triangle_count;
+	uint32_t triangle_count;
 	uint32_t* indices;
 	Vec3 const* vertices;
 };
@@ -105,10 +104,10 @@ struct Scene
 Intersection intersect_scene(Ray const ray, Scene const& scene)
 {
 	Intersection intersect;
-	for (int i = 0; i < scene.triangle_count; ++i)
+	for (uint32_t triangle_index = 0; triangle_index < scene.triangle_count; ++triangle_index)
 	{
-		Intersection const tri_intersect = intersect_ray_triangle(ray, scene.indices + i * 3, scene.vertices);
-		if (tri_intersect.valid && tri_intersect.t < intersect.t)
+		Intersection const tri_intersect = intersect_ray_triangle(ray, triangle_index, scene.indices, scene.vertices);
+		if (tri_intersect.t < intersect.t)
 		{
 			intersect = tri_intersect;
 		}
@@ -138,7 +137,7 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 	Ray const initial_ray(camera_position, image_plane_position);
 
 	Intersection const intersect = intersect_scene(initial_ray, scene);
-	if (intersect.valid)
+	if (intersect.valid())
 	{
 		return RGB(1.f, 0.f, 0.f);
 	}
@@ -166,8 +165,8 @@ int main(int const argc, char const* const argv[])
 			{
 				scene.triangle_count = imp_mesh->mNumFaces;
 				scene.indices = new uint32_t[scene.triangle_count * 3];
-				for (int j = 0; j < scene.triangle_count; ++j)
-					memcpy(scene.indices + j * 3, imp_mesh->mFaces[j].mIndices, sizeof(uint32_t) * 3);
+				for (uint32_t triangle_index = 0; triangle_index < scene.triangle_count; ++triangle_index)
+					memcpy(scene.indices + triangle_index * 3, imp_mesh->mFaces[triangle_index].mIndices, sizeof(uint32_t) * 3);
 				scene.vertices = reinterpret_cast<Vec3 const*>(imp_mesh->mVertices);
 			}
 		}

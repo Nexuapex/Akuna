@@ -9,7 +9,7 @@ Ray::Ray(Vec3 const origin, Vec3 const dir)
 }
 
 Intersection::Intersection()
-	: valid(false)
+	: triangle_index(kInvalidTriangle)
 	, t(FLT_MAX)
 	, point(FLT_MAX, FLT_MAX, FLT_MAX)
 	, normal(0.f, 0.f, 0.f)
@@ -17,8 +17,8 @@ Intersection::Intersection()
 {
 }
 
-Intersection::Intersection(Ray const ray, float const t, Vec3 const n, Barycentrics const bary)
-	: valid(true)
+Intersection::Intersection(Ray const ray, float const t, uint32_t const triangle_index, Vec3 const n, Barycentrics const bary)
+	: triangle_index(triangle_index)
 	, t(t)
 	, point(ray.origin + t * ray.direction)
 	, normal(normalize(n))
@@ -26,11 +26,18 @@ Intersection::Intersection(Ray const ray, float const t, Vec3 const n, Barycentr
 {
 }
 
-Intersection intersect_ray_triangle(Ray const ray, uint32_t const* indices, Vec3 const* vertices)
+bool Intersection::valid() const
 {
-	Vec3 const a = vertices[indices[0]];
-	Vec3 const b = vertices[indices[1]];
-	Vec3 const c = vertices[indices[2]];
+	return kInvalidTriangle != triangle_index;
+}
+
+Intersection intersect_ray_triangle(Ray const ray, uint32_t const triangle_index, uint32_t const* indices, Vec3 const* vertices)
+{
+	uint32_t const base_index = 3u * triangle_index;
+
+	Vec3 const a = vertices[indices[base_index + 0]];
+	Vec3 const b = vertices[indices[base_index + 1]];
+	Vec3 const c = vertices[indices[base_index + 2]];
 
 	Vec3 const q = ray.origin;
 	Vec3 const p = ray.origin + ray.direction;
@@ -63,5 +70,5 @@ Intersection intersect_ray_triangle(Ray const ray, uint32_t const* indices, Vec3
 	bary.u = u;
 	bary.v = v;
 	bary.w = w;
-	return Intersection(ray, t, n, bary);
+	return Intersection(ray, t, triangle_index, n, bary);
 }

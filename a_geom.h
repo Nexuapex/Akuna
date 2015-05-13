@@ -1,6 +1,6 @@
 #pragma once
 
-#include <inttypes.h>
+#include <stdint.h>
 #include "a_math.h"
 
 struct Ray
@@ -19,9 +19,11 @@ struct Barycentrics
 	float w;
 };
 
+static const uint32_t kInvalidTriangle = UINT32_MAX;
+
 struct Intersection
 {
-	bool valid;
+	uint32_t triangle_index;
 	float t;
 	Vec3 point;
 	Vec3 normal;
@@ -29,7 +31,9 @@ struct Intersection
 
 public:
 	Intersection();
-	Intersection(Ray ray, float t, Vec3 n, Barycentrics bary);
+	Intersection(Ray ray, float t, uint32_t triangle_index, Vec3 n, Barycentrics bary);
+
+	bool valid() const;
 };
 
-Intersection intersect_ray_triangle(Ray ray, uint32_t const* indices, Vec3 const* vertices);
+Intersection intersect_ray_triangle(Ray ray, uint32_t triangle_index, uint32_t const* indices, Vec3 const* vertices);
