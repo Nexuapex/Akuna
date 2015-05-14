@@ -96,33 +96,56 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	return camera_sample;
 }
 
-struct DistributionSample
+Vec3 uniform_sample_hemisphere(Vec3 const normal, std::mt19937& random_engine)
+{
+	float const pi = 3.14159265358979323846f;
+
+	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
+
+	// Rejection sample a sphere hoping to land in the correct hemisphere.
+	for (;;)
+	{
+		float const u1 = distrib(random_engine);
+		float const u2 = distrib(random_engine);
+		float const z = 1.f - 2.f * u1;
+		float const r = sqrtf(fmaxf(0.f, 1.f - z*z));
+		float const phi = 2.f * pi * u2;
+		float const x = r * cosf(phi);
+		float const y = r * sinf(phi);
+
+		Vec3 const dir(x, y, z);
+		if (dot(dir, normal) > 0.f)
+			return dir;
+	}
+}
+
+struct BsdfSample
 {
 	Vec3 direction;
-	float contribution;
+	RGB reflectance;
+	float probability_density;
 
 public:
-	DistributionSample();
+	BsdfSample();
 };
 
-DistributionSample::DistributionSample()
+BsdfSample::BsdfSample()
 	: direction(0.f, 0.f, 0.f)
-	, contribution(0.f)
+	, reflectance()
+	, probability_density(0.f)
 {
 }
 
-DistributionSample random_hemisphere_sample(Vec3 const normal, std::mt19937& random_engine)
+BsdfSample sample_lambert_bsdf(Material const& material, Vec3 const normal, std::mt19937& random_engine)
 {
-	std::uniform_real_distribution<float> distrib(-1.f, 1.f); // [-1, 1)
-
-	Vec3 const dir = normalize(Vec3(distrib(random_engine), distrib(random_engine), distrib(random_engine)));
-	float const cos_theta = dot(dir, normal);
 	float const inv_pi = 0.318309886183790671538f;
+	float const inv_2pi = 0.636619772367581343076f;
 
-	DistributionSample distribution_sample;
-	distribution_sample.direction = dir;
-	distribution_sample.contribution = (cos_theta > 0.f) ? cos_theta * inv_pi : 0.f;
-	return distribution_sample;
+	BsdfSample bsdf_sample;
+	bsdf_sample.direction = uniform_sample_hemisphere(normal, random_engine);
+	bsdf_sample.reflectance = material.diffuse * inv_pi;
+	bsdf_sample.probability_density = inv_2pi; // Probability with respect to solid angle is uniform.
+	return bsdf_sample;
 }
 
 RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, Scene const& scene, std::mt19937& random_engine)
@@ -133,7 +156,7 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 
 	int path_length = 0;
 	Ray ray(camera_position, image_plane_position);
-	RGB contribution(1.f, 1.f, 1.f);
+	RGB path_throughput(1.f, 1.f, 1.f);
 
 	do
 	{
@@ -148,15 +171,15 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 
 		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
 		RGB const emissive = material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w);
-		color += contribution * emissive;
+		color += path_throughput * emissive;
 
 		// Extend the path.
 		//
 
-		DistributionSample const distribution_sample = random_hemisphere_sample(intersect.normal, random_engine);
-		ray = Ray(intersect.point, distribution_sample.direction);
-		contribution *= material.diffuse * distribution_sample.contribution;
-	} while (path_length <= 1);
+		BsdfSample const bsdf_sample = sample_lambert_bsdf(material, intersect.normal, random_engine);
+		ray = Ray(intersect.point + intersect.normal * 1e-3f, bsdf_sample.direction);
+		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
+	} while (path_length < 2);
 
 	return color;
 }
