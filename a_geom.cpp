@@ -39,8 +39,8 @@ Intersection intersect_ray_triangle(Ray const ray, uint32_t const triangle_index
 	Vec3 const b = vertices[indices[base_index + 1]];
 	Vec3 const c = vertices[indices[base_index + 2]];
 
-	Vec3 const q = ray.origin;
-	Vec3 const p = ray.origin + ray.direction;
+	Vec3 const p = ray.origin;
+	Vec3 const q = ray.origin + ray.direction;
 
 	Vec3 const ab = b - a;
 	Vec3 const ac = c - a;
@@ -53,6 +53,7 @@ Intersection intersect_ray_triangle(Ray const ray, uint32_t const triangle_index
 
 	Vec3 const ap = p - a;
 	float t = dot(ap, n);
+	if (t < 0.f) return Intersection();
 
 	Vec3 const e = cross(qp, ap);
 	float v = dot(ac, e);

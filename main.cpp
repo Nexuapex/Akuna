@@ -183,7 +183,7 @@ int main(int const argc, char const* const argv[])
 	};
 
 	Assimp::Importer importer;
-	if (aiScene const* const imp_scene = importer.ReadFile("scene.nff", aiProcess_Triangulate | aiProcess_SortByPType))
+	if (aiScene const* const imp_scene = importer.ReadFile("scene.nff", aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_FlipWindingOrder))
 	{
 		int const meshCount = imp_scene->mNumMeshes;
 		for (int i = 0; i < meshCount; ++i)
