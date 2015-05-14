@@ -166,7 +166,7 @@ struct Image
 	static int const kWidth = 256;
 	static int const kHeight = 256;
 
-	RGB pixel[kWidth][kHeight];
+	RGB pixel[kHeight][kWidth];
 };
 
 int main(int const argc, char const* const argv[])
@@ -232,7 +232,7 @@ int main(int const argc, char const* const argv[])
 			{
 				CameraSample const camera_sample = random_camera_sample(x, y, Image::kWidth, Image::kHeight, random_engine);
 				RGB const sample = sample_image(camera_position, camera_sample, scene, random_engine);
-				image->pixel[x][y] += sample * sample_weight;
+				image->pixel[y][x] += sample * sample_weight;
 			}
 		}
 	}
