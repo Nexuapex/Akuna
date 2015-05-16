@@ -63,6 +63,12 @@ RGB& operator/=(RGB& lhs, float const s)
 	return lhs;
 }
 
+Material::Material()
+	: diffuse()
+	, emissive()
+{
+}
+
 Material::Material(RGB diffuse, RGB emissive)
 	: diffuse(diffuse)
 	, emissive(emissive)

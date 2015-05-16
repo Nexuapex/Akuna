@@ -30,5 +30,6 @@ struct Material
 	RGB emissive;
 
 public:
+	Material();
 	Material(RGB diffuse, RGB emissive);
 };

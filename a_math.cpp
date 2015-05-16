@@ -2,6 +2,13 @@
 
 #include <math.h>
 
+Vec3::Vec3()
+	: x(0.f)
+	, y(0.f)
+	, z(0.f)
+{
+}
+
 Vec3::Vec3(float const x, float const y, float const z)
 	: x(x)
 	, y(y)

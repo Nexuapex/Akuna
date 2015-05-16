@@ -7,6 +7,7 @@ struct Vec3
 	float z;
 
 public:
+	Vec3();
 	Vec3(float x, float y, float z);
 };
 

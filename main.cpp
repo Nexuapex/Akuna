@@ -91,8 +91,9 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
 
 	CameraSample camera_sample;
-	camera_sample.x = (static_cast<float>(x) + distrib(random_engine)) / static_cast<float>(width) * 2.f - 1.f;
+	camera_sample.x = (static_cast<float>(x) + distrib(random_engine)) / static_cast<float>(width)  * 2.f - 1.f;
 	camera_sample.y = (static_cast<float>(y) + distrib(random_engine)) / static_cast<float>(height) * 2.f - 1.f;
+	camera_sample.y *= -1.f;
 	return camera_sample;
 }
 
@@ -158,11 +159,11 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 {
 	RGB color;
 
-	Vec3 const image_plane_position(camera_sample.x, camera_sample.y, 1.f);
+	Vec3 const image_plane_direction(camera_sample.x, camera_sample.y, -1.f);
 	float const continue_probability = 0.8f;
 
 	int path_length = 0;
-	Ray ray(camera_position, image_plane_position);
+	Ray ray(camera_position, image_plane_direction);
 	RGB path_throughput(1.f, 1.f, 1.f);
 
 	for (;;)
@@ -177,8 +178,7 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		//
 
 		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
-		RGB const emissive = material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w);
-		color += path_throughput * emissive;
+		color += path_throughput * material.emissive;
 
 		// Possibly terminate the path.
 		//
@@ -201,6 +201,29 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 	return color;
 }
 
+struct SceneSizes
+{
+	uint32_t triangle_count;
+	uint32_t vertex_count;
+};
+
+SceneSizes get_scene_sizes(aiScene const* const scene)
+{
+	uint32_t const mesh_count = scene->mNumMeshes;
+
+	SceneSizes sizes = {};
+	for (uint32_t mesh_index = 0; mesh_index < mesh_count; ++mesh_index)
+	{
+		aiMesh const* const mesh = scene->mMeshes[mesh_index];
+		if (aiPrimitiveType_TRIANGLE == mesh->mPrimitiveTypes)
+		{
+			sizes.triangle_count += mesh->mNumFaces;
+			sizes.vertex_count += mesh->mNumVertices;
+		}
+	}
+	return sizes;
+}
+
 struct Image
 {
 	static int const kWidth = 256;
@@ -216,40 +239,67 @@ int main(int const argc, char const* const argv[])
 
 	Scene scene = {};
 
-	Material const materials[] =
-	{
-		Material(RGB(0.f, 0.f, 0.f), RGB(1.f, 1.f, 1.f)),
-		Material(RGB(1.f, 1.f, 1.f), RGB(0.f, 0.f, 0.f)),
-	};
-
 	Assimp::Importer importer;
-	if (aiScene const* const imp_scene = importer.ReadFile("scene.nff", aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_FlipWindingOrder))
+	if (aiScene const* const imp_scene = importer.ReadFile("CornellBox-Original.obj", aiProcess_Triangulate | aiProcess_SortByPType))
 	{
-		int const meshCount = imp_scene->mNumMeshes;
-		for (int i = 0; i < meshCount; ++i)
+		SceneSizes const sizes = get_scene_sizes(imp_scene);
+
+		uint32_t const mesh_count = imp_scene->mNumMeshes;
+		uint32_t const triangle_count = sizes.triangle_count;
+		uint32_t const index_count = 3 * triangle_count;
+		uint32_t const vertex_count = sizes.vertex_count;
+		uint32_t const material_count = imp_scene->mNumMaterials;
+
+		uint32_t* const indices = new uint32_t[index_count];
+		Vec3* const vertices = new Vec3[vertex_count];
+		Material* const materials = new Material[material_count];
+		uint8_t* const material_indices = new uint8_t[triangle_count];
+
+		for (uint32_t material_index = 0; material_index < material_count; ++material_index)
 		{
-			aiMesh const* const imp_mesh = imp_scene->mMeshes[i];
+			aiMaterial const* const imp_material = imp_scene->mMaterials[material_index];
+			Material& material = materials[material_index];
+			{
+				aiColor3D diffuse;
+				if (AI_SUCCESS == imp_material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse))
+					memcpy(&material.diffuse, &diffuse, sizeof(RGB));
+			}
+			{
+				aiColor3D emissive;
+				if (AI_SUCCESS == imp_material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive))
+					memcpy(&material.emissive, &emissive, sizeof(RGB));
+			}
+		}
+
+		uint32_t base_index = 0;
+		uint32_t* current_index = indices;
+		Vec3* current_vertex = vertices;
+		uint8_t* current_material_index = material_indices;
+
+		for (uint32_t mesh_index = 0; mesh_index < mesh_count; ++mesh_index)
+		{
+			aiMesh const* const imp_mesh = imp_scene->mMeshes[mesh_index];
 			if (aiPrimitiveType_TRIANGLE != imp_mesh->mPrimitiveTypes)
 				continue;
 
-			uint32_t const triangle_count = imp_mesh->mNumFaces;
-			uint32_t const index_count = 3 * triangle_count;
-			uint32_t* const indices = new uint32_t[index_count];
-			Vec3 const* const vertices = reinterpret_cast<Vec3 const*>(imp_mesh->mVertices);
-			uint8_t* const material_indices = new uint8_t[triangle_count];
-
-			for (uint32_t triangle_index = 0; triangle_index < triangle_count; ++triangle_index)
+			for (uint32_t triangle_index = 0; triangle_index < imp_mesh->mNumFaces; ++triangle_index)
 			{
-				memcpy(indices + 3 * triangle_index, imp_mesh->mFaces[triangle_index].mIndices, 3 * sizeof(uint32_t));
-				material_indices[triangle_index] = (0 == triangle_index) ? 0 : 1; // First triangle has a special material.
+				aiFace const& imp_face = imp_mesh->mFaces[triangle_index];
+				for (uint32_t index_index = 0; index_index < imp_face.mNumIndices; ++index_index)
+					*current_index++ = base_index + imp_face.mIndices[index_index];
+				*current_material_index++ = static_cast<uint8_t>(imp_mesh->mMaterialIndex);
 			}
 
-			scene.triangle_count = triangle_count;
-			scene.indices = indices;
-			scene.vertices = vertices;
-			scene.materials = materials;
-			scene.material_indices = material_indices;
+			memcpy(current_vertex, imp_mesh->mVertices, imp_mesh->mNumVertices * sizeof(Vec3));
+			current_vertex += imp_mesh->mNumVertices;
+			base_index += imp_mesh->mNumVertices;
 		}
+
+		scene.triangle_count = triangle_count;
+		scene.indices = indices;
+		scene.vertices = vertices;
+		scene.materials = materials;
+		scene.material_indices = material_indices;
 	}
 	else
 	{
@@ -257,7 +307,7 @@ int main(int const argc, char const* const argv[])
 	}
 
 	std::mt19937 random_engine;
-	Vec3 const camera_position(0.f, 0.f, 0.f);
+	Vec3 const camera_position(0.f, 1.f, 2.f);
 
 	int const samples_per_pixel = 16;
 	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
