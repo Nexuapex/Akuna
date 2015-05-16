@@ -78,6 +78,7 @@ newmtl tallBox
   Ks 0 0 0
   Ke 0 0 0
 
+
 newmtl light
   Ns 10.0000
   Ni 1.0000
