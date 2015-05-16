@@ -148,17 +148,24 @@ BsdfSample sample_lambert_bsdf(Material const& material, Vec3 const normal, std:
 	return bsdf_sample;
 }
 
+bool sample_russian_roulette(float const continue_probability, std::mt19937& random_engine)
+{
+	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
+	return distrib(random_engine) > continue_probability;
+}
+
 RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, Scene const& scene, std::mt19937& random_engine)
 {
 	RGB color;
 
 	Vec3 const image_plane_position(camera_sample.x, camera_sample.y, 1.f);
+	float const continue_probability = 0.8f;
 
 	int path_length = 0;
 	Ray ray(camera_position, image_plane_position);
 	RGB path_throughput(1.f, 1.f, 1.f);
 
-	do
+	for (;;)
 	{
 		++path_length;
 
@@ -173,13 +180,23 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		RGB const emissive = material.emissive * RGB(intersect.bary.u, intersect.bary.v, intersect.bary.w);
 		color += path_throughput * emissive;
 
+		// Possibly terminate the path.
+		//
+
+		if (path_length > 1)
+		{
+			if (sample_russian_roulette(continue_probability, random_engine))
+				break;
+			path_throughput /= continue_probability;
+		}
+
 		// Extend the path.
 		//
 
 		BsdfSample const bsdf_sample = sample_lambert_bsdf(material, intersect.normal, random_engine);
 		ray = Ray(intersect.point + intersect.normal * 1e-3f, bsdf_sample.direction);
 		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
-	} while (path_length < 2);
+	}
 
 	return color;
 }

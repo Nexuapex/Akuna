@@ -34,6 +34,11 @@ RGB operator*(RGB const rgb, float const s)
 	return RGB(rgb.r * s, rgb.g * s, rgb.b * s);
 }
 
+RGB operator/(RGB const rgb, float const s)
+{
+	return RGB(rgb.r / s, rgb.g / s, rgb.b / s);
+}
+
 RGB& operator+=(RGB& lhs, RGB const rhs)
 {
 	lhs = lhs + rhs;
@@ -43,6 +48,18 @@ RGB& operator+=(RGB& lhs, RGB const rhs)
 RGB& operator*=(RGB& lhs, RGB const rhs)
 {
 	lhs = lhs * rhs;
+	return lhs;
+}
+
+RGB& operator*=(RGB& lhs, float const s)
+{
+	lhs = lhs * s;
+	return lhs;
+}
+
+RGB& operator/=(RGB& lhs, float const s)
+{
+	lhs = lhs / s;
 	return lhs;
 }
 
