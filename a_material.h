@@ -28,8 +28,8 @@ struct Material
 {
 	RGB diffuse;
 	RGB emissive;
+	bool is_light;
 
 public:
 	Material();
-	Material(RGB diffuse, RGB emissive);
 };

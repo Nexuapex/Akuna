@@ -36,6 +36,11 @@ Vec3 operator*(Vec3 const v, float const s)
 	return Vec3(v.x * s, v.y * s, v.z * s);
 }
 
+Vec3 operator-(Vec3 const v)
+{
+	return Vec3(-v.x, -v.y, -v.z);
+}
+
 float dot(Vec3 const lhs, Vec3 const rhs)
 {
 	return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;

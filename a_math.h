@@ -16,6 +16,8 @@ Vec3 operator-(Vec3 lhs, Vec3 rhs);
 Vec3 operator*(float s, Vec3 v);
 Vec3 operator*(Vec3 v, float s);
 
+Vec3 operator-(Vec3 v);
+
 float dot(Vec3 lhs, Vec3 rhs);
 Vec3 cross(Vec3 lhs, Vec3 rhs);
 
