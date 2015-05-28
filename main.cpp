@@ -155,7 +155,7 @@ LightSample sample_scene_light(Scene const& scene, std::mt19937& random_engine)
 	light_sample.triangle_index = triangle_index;
 	light_sample.point = triangle_sample.point;
 	light_sample.normal = triangle_sample.normal;
-	light_sample.probability_density = 1.f / (scene.light_count * scene.triangle_count * triangle_sample.area); // TODO: sample by area.
+	light_sample.probability_density = 1.f / (scene.light_count * light.triangle_count * triangle_sample.area); // TODO: sample by area.
 	light_sample.material = &scene.materials[material_index];
 	return light_sample;
 }
@@ -280,7 +280,7 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 				Intersection const light_intersect = intersect_scene(light_ray, scene); // TODO: this should be a line test.
 				if (!light_intersect.valid() || light_intersect.triangle_index == light_sample.triangle_index)
 				{
-					float const geometric_factor = dot(light_sample.normal, -light_ray.direction) / length_sqr(light_sample.point - biased_point);
+					float const geometric_factor = dot(-light_ray.direction, light_sample.normal) / length_sqr(light_sample.point - biased_point);
 					BsdfSample const bsdf_sample = evaluate_lambert_bsdf(material, light_ray.direction);
 					RGB const light_throughput = bsdf_sample.reflectance * light_sample.material->emissive;
 					color += path_throughput * light_throughput * geometric_factor * (cosine_factor / light_sample.probability_density);
