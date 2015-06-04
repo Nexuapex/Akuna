@@ -220,7 +220,7 @@ BsdfSample::BsdfSample()
 BsdfSample evaluate_lambert_bsdf(Material const& material, Vec3 const direction)
 {
 	float const inv_pi = 0.318309886183790671538f;
-	float const inv_2pi = 0.636619772367581343076f;
+	float const inv_2pi = 0.159154943091895335769f;
 
 	BsdfSample bsdf_sample;
 	bsdf_sample.direction = direction;
