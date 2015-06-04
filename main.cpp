@@ -260,13 +260,16 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		if (!intersect.valid())
 			break; // Terminate the path.
 
+		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
 		Vec3 const biased_point = intersect.point + intersect.normal * 1e-3f; // Avoid acne from self-shadowing.
 
 		// Implicit path.
 		//
 
-		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
-		color += path_throughput * material.emissive;
+		{
+			RGB const implicit_path_sample = path_throughput * material.emissive;
+			color += ((path_length > 1) ? .5f : 1.f) * implicit_path_sample;
+		}
 
 		// Explicit path.
 		//
@@ -274,16 +277,22 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		{
 			LightSample const light_sample = sample_scene_light(scene, random_engine); // TODO: importance sampling.
 			Ray const light_ray(biased_point, light_sample.point - biased_point);
+			Material const& light_material = *light_sample.material;
 			float const cosine_factor = dot(light_ray.direction, intersect.normal);
 			if (cosine_factor > 0.f)
 			{
 				Intersection const light_intersect = intersect_scene(light_ray, scene); // TODO: this should be a line test.
 				if (!light_intersect.valid() || light_intersect.triangle_index == light_sample.triangle_index)
 				{
-					float const geometric_factor = dot(-light_ray.direction, light_sample.normal) / length_sqr(light_sample.point - biased_point);
-					BsdfSample const bsdf_sample = evaluate_lambert_bsdf(material, light_ray.direction);
-					RGB const light_throughput = bsdf_sample.reflectance * light_sample.material->emissive;
-					color += path_throughput * light_throughput * geometric_factor * (cosine_factor / light_sample.probability_density);
+					float const light_cosine_factor = dot(-light_ray.direction, light_sample.normal);
+					if (light_cosine_factor > 0.f)
+					{
+						BsdfSample const bsdf_sample = evaluate_lambert_bsdf(material, light_ray.direction);
+						RGB const extended_path_throughput = path_throughput * bsdf_sample.reflectance * cosine_factor;
+						float const geometric_factor = light_cosine_factor / length_sqr(light_sample.point - biased_point);
+						RGB const explicit_path_sample = extended_path_throughput * light_material.emissive * (geometric_factor / light_sample.probability_density);
+						color += .5f * explicit_path_sample;
+					}
 				}
 			}
 		}
