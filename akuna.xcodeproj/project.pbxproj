@@ -1,0 +1,240 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 47;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F4F207A31B269F7A0038FDC1 /* a_geom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4F2079D1B269F7A0038FDC1 /* a_geom.cpp */; };
+		F4F207A41B269F7A0038FDC1 /* a_material.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4F2079F1B269F7A0038FDC1 /* a_material.cpp */; };
+		F4F207A51B269F7A0038FDC1 /* a_math.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4F207A11B269F7A0038FDC1 /* a_math.cpp */; };
+		F4F207A71B269FC10038FDC1 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F4F207A61B269FC10038FDC1 /* main.cpp */; };
+		F4F207AD1B26B7B40038FDC1 /* libassimp.3.1.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = F4F207AC1B26B7B40038FDC1 /* libassimp.3.1.1.dylib */; };
+		F4F207AF1B26BA1A0038FDC1 /* libassimp.3.1.1.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = F4F207AC1B26B7B40038FDC1 /* libassimp.3.1.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F4F207AE1B26B9EE0038FDC1 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				F4F207AF1B26BA1A0038FDC1 /* libassimp.3.1.1.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		F4F207951B269F5A0038FDC1 /* akuna */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = akuna; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4F2079D1B269F7A0038FDC1 /* a_geom.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = a_geom.cpp; sourceTree = "<group>"; };
+		F4F2079E1B269F7A0038FDC1 /* a_geom.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = a_geom.h; sourceTree = "<group>"; };
+		F4F2079F1B269F7A0038FDC1 /* a_material.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = a_material.cpp; sourceTree = "<group>"; };
+		F4F207A01B269F7A0038FDC1 /* a_material.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = a_material.h; sourceTree = "<group>"; };
+		F4F207A11B269F7A0038FDC1 /* a_math.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = a_math.cpp; sourceTree = "<group>"; };
+		F4F207A21B269F7A0038FDC1 /* a_math.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = a_math.h; sourceTree = "<group>"; };
+		F4F207A61B269FC10038FDC1 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		F4F207AC1B26B7B40038FDC1 /* libassimp.3.1.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libassimp.3.1.1.dylib; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F4F207921B269F5A0038FDC1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4F207AD1B26B7B40038FDC1 /* libassimp.3.1.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F4B41CDF1B269BE4003CA67B = {
+			isa = PBXGroup;
+			children = (
+				F4F2079D1B269F7A0038FDC1 /* a_geom.cpp */,
+				F4F2079E1B269F7A0038FDC1 /* a_geom.h */,
+				F4F2079F1B269F7A0038FDC1 /* a_material.cpp */,
+				F4F207A01B269F7A0038FDC1 /* a_material.h */,
+				F4F207A11B269F7A0038FDC1 /* a_math.cpp */,
+				F4F207A21B269F7A0038FDC1 /* a_math.h */,
+				F4F207A61B269FC10038FDC1 /* main.cpp */,
+				F4F207AC1B26B7B40038FDC1 /* libassimp.3.1.1.dylib */,
+				F4F207961B269F5A0038FDC1 /* Products */,
+			);
+			sourceTree = "<group>";
+			usesTabs = 1;
+		};
+		F4F207961B269F5A0038FDC1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F4F207951B269F5A0038FDC1 /* akuna */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F4F207941B269F5A0038FDC1 /* akuna */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F4F2079C1B269F5A0038FDC1 /* Build configuration list for PBXNativeTarget "akuna" */;
+			buildPhases = (
+				F4F207911B269F5A0038FDC1 /* Sources */,
+				F4F207921B269F5A0038FDC1 /* Frameworks */,
+				F4F207AE1B26B9EE0038FDC1 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = akuna;
+			productName = akuna;
+			productReference = F4F207951B269F5A0038FDC1 /* akuna */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F4B41CE01B269BE4003CA67B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0630;
+				TargetAttributes = {
+					F4F207941B269F5A0038FDC1 = {
+						CreatedOnToolsVersion = 6.3.2;
+					};
+				};
+			};
+			buildConfigurationList = F4B41CE31B269BE4003CA67B /* Build configuration list for PBXProject "akuna" */;
+			compatibilityVersion = "Xcode 6.3";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = F4B41CDF1B269BE4003CA67B;
+			productRefGroup = F4F207961B269F5A0038FDC1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F4F207941B269F5A0038FDC1 /* akuna */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F4F207911B269F5A0038FDC1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4F207A51B269F7A0038FDC1 /* a_math.cpp in Sources */,
+				F4F207A41B269F7A0038FDC1 /* a_material.cpp in Sources */,
+				F4F207A71B269FC10038FDC1 /* main.cpp in Sources */,
+				F4F207A31B269F7A0038FDC1 /* a_geom.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F4B41CE41B269BE4003CA67B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				GCC_ENABLE_PASCAL_STRINGS = NO;
+				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wextra",
+				);
+			};
+			name = Debug;
+		};
+		F4B41CE51B269BE4003CA67B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				GCC_ENABLE_PASCAL_STRINGS = NO;
+				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
+				WARNING_CFLAGS = (
+					"-Wall",
+					"-Wextra",
+				);
+			};
+			name = Release;
+		};
+		F4F2079A1B269F5A0038FDC1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		F4F2079B1B269F5A0038FDC1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_NO_COMMON_BLOCKS = YES;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F4B41CE31B269BE4003CA67B /* Build configuration list for PBXProject "akuna" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4B41CE41B269BE4003CA67B /* Debug */,
+				F4B41CE51B269BE4003CA67B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F4F2079C1B269F5A0038FDC1 /* Build configuration list for PBXNativeTarget "akuna" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4F2079A1B269F5A0038FDC1 /* Debug */,
+				F4F2079B1B269F5A0038FDC1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F4B41CE01B269BE4003CA67B /* Project object */;
+}

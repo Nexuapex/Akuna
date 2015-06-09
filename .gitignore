@@ -1,11 +1,13 @@
 # User-specific files
 *.suo
 *.user
+xcuserdata/
 
 # Build results
 x64/
 Debug/
 Release/
+DerivedData/
 
 # Visual Studo 2015 cache/options directory
 .vs/
@@ -14,3 +16,6 @@ Release/
 ipch/
 *.opensdf
 *.sdf
+
+# Xcode metadata
+*.xccheckout
