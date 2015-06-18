@@ -27,11 +27,12 @@ struct Intersection
 	float t;
 	Vec3 point;
 	Vec3 normal;
+	Vec3 tangent;
 	Barycentrics bary;
 
 public:
 	Intersection();
-	Intersection(Ray ray, float t, uint32_t triangle_index, Vec3 n, Barycentrics bary);
+	Intersection(Ray ray, float t, uint32_t triangle_index, Vec3 n, Vec3 dpdu, Barycentrics bary);
 
 	bool valid() const;
 };

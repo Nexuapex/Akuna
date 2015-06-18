@@ -13,15 +13,17 @@ Intersection::Intersection()
 	, t(FLT_MAX)
 	, point(FLT_MAX, FLT_MAX, FLT_MAX)
 	, normal(0.f, 0.f, 0.f)
+	, tangent(0.f, 0.f, 0.f)
 	, bary()
 {
 }
 
-Intersection::Intersection(Ray const ray, float const t, uint32_t const triangle_index, Vec3 const n, Barycentrics const bary)
+Intersection::Intersection(Ray const ray, float const t, uint32_t const triangle_index, Vec3 const n, Vec3 const dpdu, Barycentrics const bary)
 	: triangle_index(triangle_index)
 	, t(t)
 	, point(ray.origin + t * ray.direction)
 	, normal(normalize(n))
+	, tangent(normalize(dpdu))
 	, bary(bary)
 {
 }
@@ -71,5 +73,5 @@ Intersection intersect_ray_triangle(Ray const ray, uint32_t const triangle_index
 	bary.u = u;
 	bary.v = v;
 	bary.w = w;
-	return Intersection(ray, t, triangle_index, n, bary);
+	return Intersection(ray, t, triangle_index, n, ab, bary);
 }

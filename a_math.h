@@ -25,3 +25,15 @@ float length_sqr(Vec3 v);
 float length(Vec3 v);
 float length_rcp(Vec3 v);
 Vec3 normalize(Vec3 v);
+
+struct Mat33
+{
+	Vec3 col[3];
+
+public:
+	Mat33();
+	Mat33(Vec3 a, Vec3 b, Vec3 c);
+};
+
+Vec3 transform_vector(Mat33 const& lhs, Vec3 rhs);
+Vec3 inv_ortho_transform_vector(Mat33 const& lhs, Vec3 rhs);

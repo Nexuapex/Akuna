@@ -177,27 +177,20 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	return camera_sample;
 }
 
-Vec3 uniform_sample_hemisphere(Vec3 const normal, std::mt19937& random_engine)
+Vec3 uniform_sample_hemisphere(std::mt19937& random_engine)
 {
 	float const pi = 3.14159265358979323846f;
 
 	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
 
-	// Rejection sample a sphere hoping to land in the correct hemisphere.
-	for (;;)
-	{
-		float const u1 = distrib(random_engine);
-		float const u2 = distrib(random_engine);
-		float const z = 1.f - 2.f * u1;
-		float const r = sqrtf(fmaxf(0.f, 1.f - z*z));
-		float const phi = 2.f * pi * u2;
-		float const x = r * cosf(phi);
-		float const y = r * sinf(phi);
-
-		Vec3 const dir(x, y, z);
-		if (dot(dir, normal) > 0.f)
-			return dir;
-	}
+	float const u1 = distrib(random_engine);
+	float const u2 = distrib(random_engine);
+	float const z = u1;
+	float const r = sqrtf(fmaxf(0.f, 1.f - z*z));
+	float const phi = 2.f * pi * u2;
+	float const x = r * cosf(phi);
+	float const y = r * sinf(phi);
+	return Vec3(x, y, z);
 }
 
 struct BsdfSample
@@ -229,10 +222,12 @@ BsdfSample evaluate_lambert_bsdf(Material const& material, Vec3 const direction)
 	return bsdf_sample;
 }
 
-BsdfSample sample_lambert_bsdf(Material const& material, Vec3 const normal, std::mt19937& random_engine)
+BsdfSample sample_lambert_bsdf(Material const& material, Vec3 const normal, Vec3 const tangent, std::mt19937& random_engine)
 {
-	Vec3 const direction = uniform_sample_hemisphere(normal, random_engine);
-	return evaluate_lambert_bsdf(material, direction);
+	Mat33 const world_from_local(tangent, cross(normal, tangent), normal);
+	Vec3 const direction_local = uniform_sample_hemisphere(random_engine);
+	Vec3 const direction_world = inv_ortho_transform_vector(world_from_local, direction_local);
+	return evaluate_lambert_bsdf(material, direction_world);
 }
 
 bool sample_russian_roulette(float const continue_probability, std::mt19937& random_engine)
@@ -310,7 +305,7 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		// Extend the path.
 		//
 
-		BsdfSample const bsdf_sample = sample_lambert_bsdf(material, intersect.normal, random_engine);
+		BsdfSample const bsdf_sample = sample_lambert_bsdf(material, intersect.normal, intersect.tangent, random_engine);
 		ray = Ray(biased_point, bsdf_sample.direction);
 		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
 	}
@@ -451,6 +446,7 @@ int main(int const argc, char const* const argv[])
 	else
 	{
 		fprintf(stderr, "%s\n", importer.GetErrorString());
+		return 1;
 	}
 
 	std::mt19937 random_engine;
