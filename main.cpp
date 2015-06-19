@@ -177,86 +177,6 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	return camera_sample;
 }
 
-Vec3 uniform_sample_hemisphere(std::mt19937& random_engine)
-{
-	float const pi = 3.14159265358979323846f;
-
-	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
-
-	float const u1 = distrib(random_engine);
-	float const u2 = distrib(random_engine);
-	float const z = u1;
-	float const r = sqrtf(fmaxf(0.f, 1.f - z*z));
-	float const phi = 2.f * pi * u2;
-	float const x = r * cosf(phi);
-	float const y = r * sinf(phi);
-	return Vec3(x, y, z);
-}
-
-float uniform_probability_density_hemisphere()
-{
-	float const inv_2pi = 0.159154943091895335769f;
-	return inv_2pi; // Probability with respect to solid angle is uniform.
-}
-
-Vec3 cosine_sample_hemisphere(std::mt19937& random_engine)
-{
-	float const pi = 3.14159265358979323846f;
-
-	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
-
-	float const u1 = distrib(random_engine);
-	float const u2 = distrib(random_engine);
-	float const r = sqrtf(u1);
-	float const theta = 2.f * pi * u2;
-	float const x = r * cosf(theta);
-	float const y = r * sinf(theta);
-	float const z = sqrtf(fmaxf(0.f, 1.f - x*x - y*y));
-	return Vec3(x, y, z);
-}
-
-float cosine_probability_density_hemisphere(Vec3 const normal, Vec3 const direction)
-{
-	float const inv_pi = 0.318309886183790671538f;
-	return dot(normal, direction) * inv_pi;
-}
-
-struct BsdfSample
-{
-	Vec3 direction;
-	RGB reflectance;
-	float probability_density;
-
-public:
-	BsdfSample();
-};
-
-BsdfSample::BsdfSample()
-	: direction(0.f, 0.f, 0.f)
-	, reflectance()
-	, probability_density(0.f)
-{
-}
-
-BsdfSample evaluate_lambert_bsdf(Material const& material, Vec3 const normal, Vec3 const direction)
-{
-	float const inv_pi = 0.318309886183790671538f;
-
-	BsdfSample bsdf_sample;
-	bsdf_sample.direction = direction;
-	bsdf_sample.reflectance = material.diffuse * inv_pi;
-	bsdf_sample.probability_density = cosine_probability_density_hemisphere(normal, direction);
-	return bsdf_sample;
-}
-
-BsdfSample sample_lambert_bsdf(Material const& material, Vec3 const normal, Vec3 const tangent, std::mt19937& random_engine)
-{
-	Mat33 const world_from_local(tangent, cross(normal, tangent), normal);
-	Vec3 const direction_local = cosine_sample_hemisphere(random_engine);
-	Vec3 const direction_world = inv_ortho_transform_vector(world_from_local, direction_local);
-	return evaluate_lambert_bsdf(material, normal, direction_world);
-}
-
 bool sample_russian_roulette(float const continue_probability, std::mt19937& random_engine)
 {
 	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
@@ -309,8 +229,8 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 					float const light_cosine_factor = dot(-light_ray.direction, light_sample.normal);
 					if (light_cosine_factor > 0.f)
 					{
-						BsdfSample const bsdf_sample = evaluate_lambert_bsdf(material, intersect.normal, light_ray.direction);
-						RGB const extended_path_throughput = path_throughput * bsdf_sample.reflectance * cosine_factor;
+						RGB const reflectance = lambert_brdf_reflectance(material);
+						RGB const extended_path_throughput = path_throughput * reflectance * cosine_factor;
 						float const geometric_factor = light_cosine_factor / length_sqr(light_sample.point - biased_point);
 						RGB const explicit_path_sample = extended_path_throughput * light_material.emissive * (geometric_factor / light_sample.probability_density);
 						color += .5f * explicit_path_sample;
@@ -332,9 +252,15 @@ RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, S
 		// Extend the path.
 		//
 
-		BsdfSample const bsdf_sample = sample_lambert_bsdf(material, intersect.normal, intersect.tangent, random_engine);
-		ray = Ray(biased_point, bsdf_sample.direction);
-		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
+		{
+			std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
+			float const u1 = distrib(random_engine);
+			float const u2 = distrib(random_engine);
+
+			BsdfSample const bsdf_sample = lambert_brdf_sample(material, intersect.normal, intersect.tangent, u1, u2);
+			ray = Ray(biased_point, bsdf_sample.direction);
+			path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
+		}
 	}
 
 	return color;

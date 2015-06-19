@@ -33,3 +33,14 @@ struct Material
 public:
 	Material();
 };
+
+struct BsdfSample
+{
+	Vec3 direction;
+	RGB reflectance;
+	float probability_density;
+};
+
+RGB lambert_brdf_reflectance(Material const& material);
+float lambert_brdf_probability_density(Vec3 normal, Vec3 direction);
+BsdfSample lambert_brdf_sample(Material const& material, Vec3 normal, Vec3 tangent, float u1, float u2);
