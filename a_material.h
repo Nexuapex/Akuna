@@ -29,6 +29,8 @@ struct Material
 	RGB diffuse;
 	RGB specular;
 	RGB emissive;
+	float ior;
+	float roughness;
 	bool is_light;
 
 public:

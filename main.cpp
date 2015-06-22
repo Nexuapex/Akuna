@@ -385,6 +385,17 @@ int main(int const argc, char const* const argv[])
 					material.is_light = !emissive.IsBlack();
 				}
 			}
+			{
+				imp_material->Get(AI_MATKEY_REFRACTI, material.ior);
+			}
+			{
+				float shininess = 0.f;
+				if (AI_SUCCESS == imp_material->Get(AI_MATKEY_SHININESS, shininess))
+				{
+					// Fairly arbitrary remapping.
+					material.roughness = sqrtf(2.f / (shininess + 2.f));
+				}
+			}
 		}
 
 		uint32_t base_index = 0;

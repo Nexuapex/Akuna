@@ -69,6 +69,8 @@ Material::Material()
 	: diffuse()
 	, specular()
 	, emissive()
+	, ior(1.f)
+	, roughness(0.f)
 	, is_light(false)
 {
 }
@@ -178,9 +180,8 @@ RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 const normal, Vec3
 	Vec3 const h = normalize(incoming + outgoing);
 
 	float const ior_incoming = 1.0002926f; // air
-	float const ior_outgoing = 1.44f; // aluminum (roughly)
-	float const alpha = 0.5f; // completely arbitrary
-	(void)material;
+	float const ior_outgoing = material.ior;
+	float const alpha = material.roughness;
 
 	float const n_dot_i = dot(normal, incoming);
 	float const n_dot_o = dot(normal, outgoing);
