@@ -371,6 +371,13 @@ int main(int const argc, char const* const argv[])
 				}
 			}
 			{
+				aiColor3D specular;
+				if (AI_SUCCESS == imp_material->Get(AI_MATKEY_COLOR_SPECULAR, specular))
+				{
+					memcpy(&material.specular, &specular, sizeof(RGB));
+				}
+			}
+			{
 				aiColor3D emissive;
 				if (AI_SUCCESS == imp_material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive))
 				{

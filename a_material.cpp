@@ -67,6 +67,7 @@ RGB& operator/=(RGB& lhs, float const s)
 
 Material::Material()
 	: diffuse()
+	, specular()
 	, emissive()
 	, is_light(false)
 {
@@ -191,7 +192,7 @@ RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 const normal, Vec3
 	float const density = ggx_smith_normal_density(n_dot_h, alpha);
 
 	float const reflectance = (fresnel * geometry * density) / (4.f * n_dot_i * n_dot_o);
-	return RGB(reflectance, reflectance, reflectance); // TODO: non-metals
+	return material.specular * reflectance;
 }
 
 float ggx_smith_brdf_probability_density(Vec3 const normal, Vec3 const direction)

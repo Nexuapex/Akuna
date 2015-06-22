@@ -27,6 +27,7 @@ RGB& operator/=(RGB& lhs, float s);
 struct Material
 {
 	RGB diffuse;
+	RGB specular;
 	RGB emissive;
 	bool is_light;
 
