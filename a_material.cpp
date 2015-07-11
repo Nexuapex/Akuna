@@ -113,27 +113,37 @@ float cosine_hemisphere_probability_density(Vec3 const normal, Vec3 const direct
 	return dot(normal, direction) * inv_pi;
 }
 
-RGB lambert_brdf_reflectance(Material const& material)
+RGB lambert_brdf_reflectance(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
+	if (dot(incoming, normal) <= 0.f)
+		return RGB();
+	if (dot(outgoing, normal) <= 0.f)
+		return RGB();
+
 	float const inv_pi = 0.318309886183790671538f;
 	return material.diffuse * inv_pi;
 }
 
-float lambert_brdf_probability_density(Vec3 const normal, Vec3 const direction)
+float lambert_brdf_probability_density(Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
-	return cosine_hemisphere_probability_density(normal, direction);
+	if (dot(incoming, normal) <= 0.f)
+		return 0.f;
+	if (dot(outgoing, normal) <= 0.f)
+		return 0.f;
+
+	return cosine_hemisphere_probability_density(normal, incoming);
 }
 
-BsdfSample lambert_brdf_sample(Material const& material, Vec3 const normal, Vec3 const tangent, float const u1, float const u2)
+BsdfSample lambert_brdf_sample(Vec3 const world_outgoing, Material const& material, Vec3 const normal, Vec3 const tangent, float const u1, float const u2)
 {
 	Mat33 const world_from_local(tangent, cross(normal, tangent), normal);
-	Vec3 const local_direction = cosine_hemisphere_sample(u1, u2);
-	Vec3 const world_direction = transform_vector(world_from_local, local_direction);
+	Vec3 const local_incoming = cosine_hemisphere_sample(u1, u2);
+	Vec3 const world_incoming = transform_vector(world_from_local, local_incoming);
 
 	BsdfSample bsdf_sample;
-	bsdf_sample.direction = world_direction;
-	bsdf_sample.reflectance = lambert_brdf_reflectance(material);
-	bsdf_sample.probability_density = lambert_brdf_probability_density(normal, world_direction);
+	bsdf_sample.direction = world_incoming;
+	bsdf_sample.reflectance = lambert_brdf_reflectance(material, normal, world_incoming, world_outgoing);
+	bsdf_sample.probability_density = lambert_brdf_probability_density(normal, world_incoming, world_outgoing);
 	return bsdf_sample;
 }
 
@@ -182,7 +192,9 @@ float ggx_smith_normal_density(float const n_dot_h, float const alpha)
 
 RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
-	if (dot(incoming, outgoing) <= 0.f)
+	if (dot(incoming, normal) <= 0.f)
+		return RGB();
+	if (dot(outgoing, normal) <= 0.f)
 		return RGB();
 
 	Vec3 const h = normalize(incoming + outgoing); // microfacet normal
@@ -216,11 +228,10 @@ Vec3 ggx_smith_sample_incoming_direction(float const u1, float const u2, Vec3 co
 	float const y = r * sinf(phi);
 	float const z = cosf(theta);
 
-	Vec3 h(x, y, z); // microfacet normal
-
 	// TODO: explain this (PBRT p. 697)
-	if (dot(outgoing, h) <= 0.f)
-		h = -h;
+	float const flip = (z * outgoing.z <= 0.f) ? -1.f : 1.f;
+
+	Vec3 const h(x*flip, y*flip, z*flip); // microfacet normal
 
 	Vec3 const incoming = reflect(outgoing, h);
 	return incoming;
@@ -228,7 +239,9 @@ Vec3 ggx_smith_sample_incoming_direction(float const u1, float const u2, Vec3 co
 
 float ggx_smith_brdf_probability_density(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
-	if (dot(incoming, outgoing) <= 0.f)
+	if (dot(incoming, normal) <= 0.f)
+		return 0.f;
+	if (dot(outgoing, normal) <= 0.f)
 		return 0.f;
 
 	Vec3 const h = normalize(incoming + outgoing); // microfacet normal

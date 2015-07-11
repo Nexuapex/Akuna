@@ -44,9 +44,9 @@ struct BsdfSample
 	float probability_density;
 };
 
-RGB lambert_brdf_reflectance(Material const& material);
-float lambert_brdf_probability_density(Vec3 normal, Vec3 direction);
-BsdfSample lambert_brdf_sample(Material const& material, Vec3 normal, Vec3 tangent, float u1, float u2);
+RGB lambert_brdf_reflectance(Material const& material, Vec3 normal, Vec3 incoming, Vec3 outgoing);
+float lambert_brdf_probability_density(Vec3 normal, Vec3 incoming, Vec3 outgoing);
+BsdfSample lambert_brdf_sample(Vec3 outgoing, Material const& material, Vec3 normal, Vec3 tangent, float u1, float u2);
 
 RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 normal, Vec3 incoming, Vec3 outgoing);
 float ggx_smith_brdf_probability_density(Material const& material, Vec3 normal, Vec3 incoming, Vec3 outgoing);

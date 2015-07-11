@@ -186,7 +186,7 @@ BsdfSample surface_bsdf_sample(Vec3 const outgoing, Material const& material, Ve
 
 	std::uniform_int_distribution<> bsdf_distrib(0, 1);
 
-	BsdfSample const lambert_sample = lambert_brdf_sample(material, normal, tangent, u1, u2);
+	BsdfSample const lambert_sample = lambert_brdf_sample(outgoing, material, normal, tangent, u1, u2);
 	BsdfSample const ggx_smith_sample = ggx_smith_brdf_sample(outgoing, material, normal, tangent, u1, u2);
 
 	BsdfSample bsdf_sample;
@@ -200,8 +200,8 @@ BsdfSample surface_bsdf_sample(Vec3 const outgoing, Material const& material, Ve
 		break;
 	case 1:
 		bsdf_sample.direction = ggx_smith_sample.direction;
-		bsdf_sample.reflectance = lambert_brdf_reflectance(material) + ggx_smith_sample.reflectance;
-		bsdf_sample.probability_density = 0.5f * (lambert_brdf_probability_density(normal, ggx_smith_sample.direction) + ggx_smith_sample.probability_density);
+		bsdf_sample.reflectance = lambert_brdf_reflectance(material, normal, ggx_smith_sample.direction, outgoing) + ggx_smith_sample.reflectance;
+		bsdf_sample.probability_density = 0.5f * (lambert_brdf_probability_density(outgoing, normal, ggx_smith_sample.direction) + ggx_smith_sample.probability_density);
 		break;
 	}
 
@@ -210,7 +210,7 @@ BsdfSample surface_bsdf_sample(Vec3 const outgoing, Material const& material, Ve
 
 RGB surface_bsdf_reflectance(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
-	return lambert_brdf_reflectance(material) + ggx_smith_brdf_reflectance(material, normal, incoming, outgoing);
+	return lambert_brdf_reflectance(material, normal, incoming, outgoing) + ggx_smith_brdf_reflectance(material, normal, incoming, outgoing);
 }
 
 bool sample_russian_roulette(float const continue_probability, std::mt19937& random_engine)
@@ -288,6 +288,8 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		//
 
 		BsdfSample const bsdf_sample = surface_bsdf_sample(-ray.direction, material, intersect.normal, intersect.tangent, random_engine);
+		if (bsdf_sample.probability_density == 0.f)
+			break;
 		ray = Ray(biased_point, bsdf_sample.direction);
 		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
 	}
