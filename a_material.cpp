@@ -128,7 +128,7 @@ BsdfSample lambert_brdf_sample(Material const& material, Vec3 const normal, Vec3
 {
 	Mat33 const world_from_local(tangent, cross(normal, tangent), normal);
 	Vec3 const local_direction = cosine_hemisphere_sample(u1, u2);
-	Vec3 const world_direction = inv_ortho_transform_vector(world_from_local, local_direction);
+	Vec3 const world_direction = transform_vector(world_from_local, local_direction);
 
 	BsdfSample bsdf_sample;
 	bsdf_sample.direction = world_direction;
@@ -154,6 +154,7 @@ float fresnel_exact(float const ior_incoming, float const ior_outgoing, float co
 	return 0.5f * (a*a) * (1.f + b*b);
 }
 
+// TODO: [Walter07] clamps this term to zero in some cases.
 float ggx_smith_geometry_term(float const cosine, float const alpha)
 {
 	float const alpha_squared = alpha * alpha;
@@ -170,6 +171,10 @@ float ggx_smith_normal_density(float const n_dot_h, float const alpha)
 {
 	float const inv_pi = 0.318309886183790671538f;
 
+	// Every microfacet normal is in the same hemisphere as the surface normal.
+	if (n_dot_h <= 0.f)
+		return 0.f;
+
 	float const alpha_squared = alpha * alpha;
 	float const denom = n_dot_h * n_dot_h * (alpha_squared - 1.f) + 1.f;
 	return inv_pi * alpha_squared / (denom * denom);
@@ -177,7 +182,10 @@ float ggx_smith_normal_density(float const n_dot_h, float const alpha)
 
 RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
 {
-	Vec3 const h = normalize(incoming + outgoing);
+	if (dot(incoming, outgoing) <= 0.f)
+		return RGB();
+
+	Vec3 const h = normalize(incoming + outgoing); // microfacet normal
 
 	float const ior_incoming = 1.0002926f; // air
 	float const ior_outgoing = material.ior;
@@ -196,20 +204,54 @@ RGB ggx_smith_brdf_reflectance(Material const& material, Vec3 const normal, Vec3
 	return material.specular * reflectance;
 }
 
-float ggx_smith_brdf_probability_density(Vec3 const normal, Vec3 const direction)
+Vec3 ggx_smith_sample_incoming_direction(float const u1, float const u2, Vec3 const outgoing, Material const& material)
 {
-	return cosine_hemisphere_probability_density(normal, direction);
+	float const pi = 3.14159265358979323846f;
+
+	float const alpha = material.roughness;
+	float const theta = atanf((alpha * sqrt(u1)) / sqrtf(1.f - u1));
+	float const phi = 2.f * pi * u2;
+	float const r = sinf(theta);
+	float const x = r * cosf(phi);
+	float const y = r * sinf(phi);
+	float const z = cosf(theta);
+
+	Vec3 h(x, y, z); // microfacet normal
+
+	// TODO: explain this (PBRT p. 697)
+	if (dot(outgoing, h) <= 0.f)
+		h = -h;
+
+	Vec3 const incoming = reflect(outgoing, h);
+	return incoming;
 }
 
-BsdfSample ggx_smith_brdf_sample(Vec3 const outgoing, Material const& material, Vec3 const normal, Vec3 const tangent, float const u1, float const u2)
+float ggx_smith_brdf_probability_density(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
+{
+	if (dot(incoming, outgoing) <= 0.f)
+		return 0.f;
+
+	Vec3 const h = normalize(incoming + outgoing); // microfacet normal
+
+	float const alpha = material.roughness;
+	float const n_dot_h = dot(normal, h);
+	float const o_dot_h = dot(outgoing, h);
+
+	float const density = ggx_smith_normal_density(n_dot_h, alpha);
+
+	return (density * n_dot_h) / (4.f * o_dot_h);
+}
+
+BsdfSample ggx_smith_brdf_sample(Vec3 const world_outgoing, Material const& material, Vec3 const normal, Vec3 const tangent, float const u1, float const u2)
 {
 	Mat33 const world_from_local(tangent, cross(normal, tangent), normal);
-	Vec3 const local_incoming = cosine_hemisphere_sample(u1, u2);
-	Vec3 const world_incoming = inv_ortho_transform_vector(world_from_local, local_incoming);
-	
+	Vec3 const local_outgoing = inv_ortho_transform_vector(world_from_local, world_outgoing);
+	Vec3 const local_incoming = ggx_smith_sample_incoming_direction(u1, u2, local_outgoing, material);
+	Vec3 const world_incoming = transform_vector(world_from_local, local_incoming);
+
 	BsdfSample bsdf_sample;
 	bsdf_sample.direction = world_incoming;
-	bsdf_sample.reflectance = ggx_smith_brdf_reflectance(material, normal, world_incoming, outgoing);
-	bsdf_sample.probability_density = ggx_smith_brdf_probability_density(normal, world_incoming);
+	bsdf_sample.reflectance = ggx_smith_brdf_reflectance(material, normal, world_incoming, world_outgoing);
+	bsdf_sample.probability_density = ggx_smith_brdf_probability_density(material, normal, world_incoming, world_outgoing);
 	return bsdf_sample;
 }

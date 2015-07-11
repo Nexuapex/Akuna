@@ -196,7 +196,7 @@ BsdfSample surface_bsdf_sample(Vec3 const outgoing, Material const& material, Ve
 	case 0:
 		bsdf_sample.direction = lambert_sample.direction;
 		bsdf_sample.reflectance = lambert_sample.reflectance + ggx_smith_brdf_reflectance(material, normal, lambert_sample.direction, outgoing);
-		bsdf_sample.probability_density = 0.5f * (lambert_sample.probability_density + ggx_smith_brdf_probability_density(normal, lambert_sample.direction));
+		bsdf_sample.probability_density = 0.5f * (lambert_sample.probability_density + ggx_smith_brdf_probability_density(material, normal, lambert_sample.direction, outgoing));
 		break;
 	case 1:
 		bsdf_sample.direction = ggx_smith_sample.direction;
