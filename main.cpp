@@ -219,15 +219,14 @@ bool sample_russian_roulette(float const continue_probability, std::mt19937& ran
 	return distrib(random_engine) > continue_probability;
 }
 
-RGB sample_image(Vec3 const camera_position, CameraSample const camera_sample, Scene const& scene, std::mt19937& random_engine)
+RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene const& scene, std::mt19937& random_engine)
 {
 	RGB color;
 
-	Vec3 const image_plane_direction(camera_sample.x, camera_sample.y, -1.f);
 	float const continue_probability = 0.8f;
 
 	int path_length = 0;
-	Ray ray(camera_position, image_plane_direction);
+	Ray ray(camera_position, camera_direction);
 	RGB path_throughput(1.f, 1.f, 1.f);
 
 	for (;;)
@@ -451,7 +450,8 @@ int main(int const argc, char const* const argv[])
 	}
 
 	std::mt19937 random_engine;
-	Vec3 const camera_position(0.f, 1.f, 2.f);
+	Vec3 const camera_position(0.f, 1.f, 4.9f);
+	float const image_plane_size = 0.25f;
 
 	int const samples_per_pixel = 16;
 	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
@@ -465,7 +465,8 @@ int main(int const argc, char const* const argv[])
 			for (int n = 0; n < samples_per_pixel; ++n)
 			{
 				CameraSample const camera_sample = random_camera_sample(x, y, Image::kWidth, Image::kHeight, random_engine);
-				RGB const sample = sample_image(camera_position, camera_sample, scene, random_engine);
+				Vec3 const image_plane_direction(camera_sample.x * image_plane_size, camera_sample.y * image_plane_size, -1.f);
+				RGB const sample = sample_image(camera_position, image_plane_direction, scene, random_engine);
 				image->pixel[y][x] += sample * sample_weight;
 			}
 		}
