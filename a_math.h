@@ -26,6 +26,8 @@ float length(Vec3 v);
 float length_rcp(Vec3 v);
 Vec3 normalize(Vec3 v);
 
+Vec3 reflect(Vec3 v, Vec3 normal);
+
 struct Mat33
 {
 	Vec3 col[3];

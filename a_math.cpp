@@ -75,6 +75,11 @@ Vec3 normalize(Vec3 const v)
 	return v * length_rcp(v);
 }
 
+Vec3 reflect(Vec3 const v, Vec3 const normal)
+{
+	return -v + 2.f * dot(v, normal) * normal;
+}
+
 Mat33::Mat33()
 	: col{
 		Vec3(1.f, 0.f, 0.f),
@@ -92,13 +97,13 @@ Mat33::Mat33(Vec3 const a, Vec3 const b, Vec3 const c)
 
 Vec3 transform_vector(Mat33 const& lhs, Vec3 const rhs)
 {
-	return Vec3(dot(lhs.col[0], rhs), dot(lhs.col[1], rhs), dot(lhs.col[2], rhs));
-}
-
-Vec3 inv_ortho_transform_vector(Mat33 const& lhs, Vec3 const rhs)
-{
 	Vec3 const row0(lhs.col[0].x, lhs.col[1].x, lhs.col[2].x);
 	Vec3 const row1(lhs.col[0].y, lhs.col[1].y, lhs.col[2].y);
 	Vec3 const row2(lhs.col[0].z, lhs.col[1].z, lhs.col[2].z);
 	return Vec3(dot(row0, rhs), dot(row1, rhs), dot(row2, rhs));
+}
+
+Vec3 inv_ortho_transform_vector(Mat33 const& lhs, Vec3 const rhs)
+{
+	return Vec3(dot(lhs.col[0], rhs), dot(lhs.col[1], rhs), dot(lhs.col[2], rhs));
 }
