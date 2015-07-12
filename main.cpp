@@ -74,6 +74,7 @@ struct Scene
 	uint8_t const* material_indices;
 
 	Light const* lights;
+	float light_area;
 };
 
 Intersection intersect_scene(Ray const ray, Scene const& scene)
@@ -94,7 +95,6 @@ struct TriangleSample
 {
 	Vec3 point;
 	Vec3 normal;
-	float area;
 };
 
 TriangleSample random_triangle_sample(uint32_t const triangle_index, Scene const& scene, std::mt19937& random_engine)
@@ -126,7 +126,6 @@ TriangleSample random_triangle_sample(uint32_t const triangle_index, Scene const
 	TriangleSample triangle_sample = {};
 	triangle_sample.point = bary.u * a + bary.v * b + bary.w * c;
 	triangle_sample.normal = normalize(n);
-	triangle_sample.area = 0.5f * length(n);
 	return triangle_sample;
 }
 
@@ -138,6 +137,11 @@ struct LightSample
 	float probability_density;
 	Material const* material;
 };
+
+float scene_light_probability_density(Scene const& scene)
+{
+	return 1.f / scene.light_area;
+}
 
 LightSample sample_scene_light(Scene const& scene, std::mt19937& random_engine)
 {
@@ -155,7 +159,7 @@ LightSample sample_scene_light(Scene const& scene, std::mt19937& random_engine)
 	light_sample.triangle_index = triangle_index;
 	light_sample.point = triangle_sample.point;
 	light_sample.normal = triangle_sample.normal;
-	light_sample.probability_density = 1.f / (scene.light_count * light.triangle_count * triangle_sample.area); // TODO: sample by area.
+	light_sample.probability_density = scene_light_probability_density(scene);
 	light_sample.material = &scene.materials[material_index];
 	return light_sample;
 }
@@ -175,6 +179,14 @@ CameraSample random_camera_sample(int const x, int const y, int const width, int
 	camera_sample.y = (static_cast<float>(y) + distrib(random_engine)) / static_cast<float>(height) * 2.f - 1.f;
 	camera_sample.y *= -1.f;
 	return camera_sample;
+}
+
+float power_heuristic(float const probability_density_f, float const probability_density_g)
+{
+	float const f = probability_density_f;
+	float const g = probability_density_g;
+
+	return (f*f) / (f*f + g*g);
 }
 
 BsdfSample surface_bsdf_sample(Vec3 const outgoing, Material const& material, Vec3 const normal, Vec3 const tangent, std::mt19937& random_engine)
@@ -213,6 +225,11 @@ RGB surface_bsdf_reflectance(Material const& material, Vec3 const normal, Vec3 c
 	return lambert_brdf_reflectance(material, normal, incoming, outgoing) + ggx_smith_brdf_reflectance(material, normal, incoming, outgoing);
 }
 
+float surface_brdf_probability_density(Material const& material, Vec3 const normal, Vec3 const incoming, Vec3 const outgoing)
+{
+	return 0.5f * (lambert_brdf_probability_density(normal, incoming, outgoing) + ggx_smith_brdf_probability_density(material, normal, incoming, outgoing));
+}
+
 bool sample_russian_roulette(float const continue_probability, std::mt19937& random_engine)
 {
 	std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
@@ -228,6 +245,7 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 	int path_length = 0;
 	Ray ray(camera_position, camera_direction);
 	RGB path_throughput(1.f, 1.f, 1.f);
+	float last_forward_sampling_probability_density = 0.f;
 
 	for (;;)
 	{
@@ -243,9 +261,16 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		// Implicit path.
 		//
 
+		if (material.is_light)
 		{
 			RGB const implicit_path_sample = path_throughput * material.emissive;
-			color += ((path_length > 1) ? .5f : 1.f) * implicit_path_sample;
+			float implicit_path_weight = 1.f;
+			if (path_length > 1)
+			{
+				float const explicit_path_probability_density = scene_light_probability_density(scene);
+				implicit_path_weight = power_heuristic(last_forward_sampling_probability_density, explicit_path_probability_density);
+			}
+			color += implicit_path_weight * implicit_path_sample;
 		}
 
 		// Explicit path.
@@ -265,10 +290,14 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 					if (light_cosine_factor > 0.f)
 					{
 						RGB const reflectance = surface_bsdf_reflectance(material, intersect.normal, light_ray.direction, -ray.direction);
+						float const implicit_path_probability_density = surface_brdf_probability_density(material, intersect.normal, light_ray.direction, -ray.direction);
+
 						RGB const extended_path_throughput = path_throughput * reflectance * cosine_factor;
 						float const geometric_factor = light_cosine_factor / length_sqr(light_sample.point - biased_point);
 						RGB const explicit_path_sample = extended_path_throughput * light_material.emissive * (geometric_factor / light_sample.probability_density);
-						color += .5f * explicit_path_sample;
+
+						float const explicit_path_weight = power_heuristic(light_sample.probability_density, implicit_path_probability_density);
+						color += explicit_path_weight * explicit_path_sample;
 					}
 				}
 			}
@@ -292,6 +321,7 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 			break;
 		ray = Ray(biased_point, bsdf_sample.direction);
 		path_throughput *= bsdf_sample.reflectance * (dot(bsdf_sample.direction, intersect.normal) / bsdf_sample.probability_density);
+		last_forward_sampling_probability_density = bsdf_sample.probability_density;
 	}
 
 	return color;
@@ -325,6 +355,35 @@ SceneSizes get_scene_sizes(aiScene const* const scene)
 		}
 	}
 	return sizes;
+}
+
+float get_scene_light_area(Scene const& scene)
+{
+	uint32_t const* indices = scene.indices;
+	Vec3 const* vertices = scene.vertices;
+
+	float light_area = 0.f;
+
+	for (uint32_t light_index = 0; light_index < scene.light_count; ++light_index)
+	{
+		Light const& light = scene.lights[light_index];
+		for (uint32_t triangle_index = 0; triangle_index < light.triangle_count; ++triangle_index)
+		{
+			uint32_t const base_index = 3u * (light.triangle_index + triangle_index);
+
+			Vec3 const a = vertices[indices[base_index + 0]];
+			Vec3 const b = vertices[indices[base_index + 1]];
+			Vec3 const c = vertices[indices[base_index + 2]];
+
+			Vec3 const ab = b - a;
+			Vec3 const ac = c - a;
+
+			Vec3 const n = cross(ab, ac);
+			light_area += 0.5f * length(n);
+		}
+	}
+
+	return light_area;
 }
 
 struct Image
@@ -444,6 +503,7 @@ int main(int const argc, char const* const argv[])
 		scene.material_indices = material_indices;
 
 		scene.lights = lights;
+		scene.light_area = get_scene_light_area(scene);
 	}
 	else
 	{
