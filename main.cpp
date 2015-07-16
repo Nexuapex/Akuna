@@ -267,8 +267,10 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 			float implicit_path_weight = 1.f;
 			if (path_length > 1)
 			{
+				float const geometric_factor = dot(-ray.direction, intersect.normal) / length_sqr(intersect.point - ray.origin);
+				float const implicit_path_probability_density = last_forward_sampling_probability_density * geometric_factor;
 				float const explicit_path_probability_density = scene_light_probability_density(scene);
-				implicit_path_weight = power_heuristic(last_forward_sampling_probability_density, explicit_path_probability_density);
+				implicit_path_weight = power_heuristic(implicit_path_probability_density, explicit_path_probability_density);
 			}
 			color += implicit_path_weight * implicit_path_sample;
 		}
@@ -290,11 +292,12 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 					if (light_cosine_factor > 0.f)
 					{
 						RGB const reflectance = surface_bsdf_reflectance(material, intersect.normal, light_ray.direction, -ray.direction);
-						float const implicit_path_probability_density = surface_brdf_probability_density(material, intersect.normal, light_ray.direction, -ray.direction);
+						float const forward_sampling_probability_density = surface_brdf_probability_density(material, intersect.normal, light_ray.direction, -ray.direction);
 
 						RGB const extended_path_throughput = path_throughput * reflectance * cosine_factor;
 						float const geometric_factor = light_cosine_factor / length_sqr(light_sample.point - biased_point);
 						RGB const explicit_path_sample = extended_path_throughput * light_material.emissive * (geometric_factor / light_sample.probability_density);
+						float const implicit_path_probability_density = forward_sampling_probability_density * geometric_factor;
 
 						float const explicit_path_weight = power_heuristic(light_sample.probability_density, implicit_path_probability_density);
 						color += explicit_path_weight * explicit_path_sample;
