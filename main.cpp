@@ -309,7 +309,7 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		// Possibly terminate the path.
 		//
 
-		if (path_length > 1)
+		if (path_length > 3)
 		{
 			if (sample_russian_roulette(continue_probability, random_engine))
 				break;
