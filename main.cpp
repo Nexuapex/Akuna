@@ -1,6 +1,4 @@
-#include <limits.h>
 #include <math.h>
-#include <stdio.h>
 
 #include <random>
 
@@ -9,53 +7,8 @@
 #include "assimp/scene.h"
 
 #include "a_geom.h"
+#include "a_image.h"
 #include "a_material.h"
-
-struct RGBE
-{
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
-	uint8_t e;
-};
-
-// http://www.graphics.cornell.edu/online/formats/rgbe/
-void write_rgbe(FILE* const out, int const width, int const height, RGB const image[])
-{
-	fprintf(out, "#?RADIANCE\n");
-	fprintf(out, "GAMMA=%g\n", 1.0);
-	fprintf(out, "EXPOSURE=%g\n", 1.0);
-	fprintf(out, "FORMAT=32-bit_rle_rgbe\n");
-	fprintf(out, "\n");
-
-	fprintf(out, "-Y %d +X %d\n", height, width);
-	for (int y = 0; y < height; ++y)
-	{
-		RGB const* scanline = image + y * width;
-		for (int x = 0; x < width; ++x)
-		{
-			RGB const rgb = scanline[x];
-			float const dominant = fmaxf(rgb.r, fmaxf(rgb.g, rgb.b));
-
-			RGBE rgbe;
-			if (dominant < 1e-32)
-			{
-				rgbe.r = rgbe.g = rgbe.b = rgbe.e = 0;
-			}
-			else
-			{
-				int exponent = INT_MIN;
-				float const significand = frexpf(dominant, &exponent);
-				float const scale = significand * 256.f / dominant;
-				rgbe.r = static_cast<uint8_t>(scale * rgb.r);
-				rgbe.g = static_cast<uint8_t>(scale * rgb.g);
-				rgbe.b = static_cast<uint8_t>(scale * rgb.b);
-				rgbe.e = static_cast<uint8_t>(exponent + 128);
-			}
-			fwrite(&rgbe, sizeof(rgbe), 1, out);
-		}
-	}
-}
 
 struct Light
 {
@@ -389,14 +342,6 @@ float get_scene_light_area(Scene const& scene)
 	return light_area;
 }
 
-struct Image
-{
-	static int const kWidth = 256;
-	static int const kHeight = 256;
-
-	RGB pixel[kHeight][kWidth];
-};
-
 int main(int const argc, char const* const argv[])
 {
 	(void)argc;
@@ -518,29 +463,35 @@ int main(int const argc, char const* const argv[])
 	Vec3 const camera_position(0.f, 1.f, 4.9f);
 	float const image_plane_size = 0.25f;
 
+	int const width = 256;
+	int const height = 256;
 	int const samples_per_pixel = 16;
 	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
 
-	Image* const image = new Image;
+	Image image = {};
+	image.width = width;
+	image.height = height;
+	image.pixels = new RGB[image.width * image.height];
 
-	for (int y = 0; y < Image::kHeight; ++y)
+	for (int y = 0; y < height; ++y)
 	{
-		for (int x = 0; x < Image::kWidth; ++x)
+		for (int x = 0; x < width; ++x)
 		{
 			for (int n = 0; n < samples_per_pixel; ++n)
 			{
-				CameraSample const camera_sample = random_camera_sample(x, y, Image::kWidth, Image::kHeight, random_engine);
+				CameraSample const camera_sample = random_camera_sample(x, y, width, height, random_engine);
 				Vec3 const image_plane_direction(camera_sample.x * image_plane_size, camera_sample.y * image_plane_size, -1.f);
 				RGB const sample = sample_image(camera_position, image_plane_direction, scene, random_engine);
-				image->pixel[y][x] += sample * sample_weight;
+				image.pixels[y * width + x] += sample * sample_weight;
 			}
 		}
 	}
 
-	if (FILE* const out = fopen("test.hdr", "wb"))
+	if (!write_rgbe("test.hdr", image))
 	{
-		write_rgbe(out, Image::kWidth, Image::kHeight, &image->pixel[0][0]);
-		fclose(out);
+		fputs("Failed to write image\n", stderr);
+		return 1;
 	}
+
 	return 0;
 }
