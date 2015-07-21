@@ -9,4 +9,5 @@ struct Image
 	RGB* pixels;
 };
 
-bool write_rgbe(char const* path, Image& image);
+bool read_rgbe(char const* path, Image& image);
+bool write_rgbe(char const* path, Image const& image);
