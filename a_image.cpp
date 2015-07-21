@@ -1,11 +1,52 @@
 #include "a_image.h"
-#include "a_material.h"
+#include "a_geom.h"
 
 #include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <algorithm>
+
+int texel_u(Image const& image, float const u)
+{
+	float const x = (u - floorf(u)) * image.width;
+	return static_cast<int>(x + .5f);
+}
+
+int texel_v(Image const& image, float const v)
+{
+	float const y = (v - floorf(v)) * image.height;
+	return static_cast<int>(y + .5f);
+}
+
+RGB fetch_bilinear_wrap(Image const& image, float const u, float const v)
+{
+	int const width = image.width;
+	int const height = image.height;
+	RGB const* const pixels = image.pixels;
+
+	float const x = (u - floorf(u)) * width;
+	float const y = (v - floorf(v)) * height;
+
+	int const x0 = static_cast<int>(x);
+	int const y0 = static_cast<int>(y);
+	int const x1 = (x0+1) % width;
+	int const y1 = (y0+1) % height;
+
+	RGB const m00 = pixels[y0 * width + x0];
+	RGB const m01 = pixels[y0 * width + x1];
+	RGB const m10 = pixels[y1 * width + x0];
+	RGB const m11 = pixels[y1 * width + x1];
+
+	float const tx = x - static_cast<float>(x0);
+	float const ty = y - static_cast<float>(y0);
+
+	RGB const m0 = m01 + (m00 - tx*m00);
+	RGB const m1 = m11 + (m10 - tx*m10);
+	return m1 + (m0 - ty*m0);
+}
 
 struct RGBE
 {
@@ -128,4 +169,114 @@ bool write_rgbe(char const* const path, Image const& image)
 
 	fclose(out);
 	return true;
+}
+
+void precompute_cumulative_probability_density(Image& image)
+{
+	int const width = image.width;
+	int const height = image.height;
+	float* const cdf_u = new float[width];
+	float* const cdf_v = new float[width * height];
+
+	float const pi = 3.14159265358979323846f;
+	float const theta_step = pi / static_cast<float>(height);
+
+	float sum_u = 0.f;
+	for (int x = 0; x < width; ++x)
+	{
+		float sum_v = 0.f;
+		float* const column_v = cdf_v + x * height;
+		for (int y = 0; y < height; ++y)
+		{
+			float const lum = luminance(image.pixels[y * width + x]);
+			float const theta = (y + 0.5f) * theta_step;
+			sum_v += lum * sinf(theta);
+			column_v[y] = sum_v;
+		}
+		sum_u += sum_v;
+		cdf_u[x] = sum_u;
+	}
+
+	image.cdf_u = cdf_u;
+	image.cdf_v = cdf_v;
+}
+
+RGB skydome_light_radiance(Image const& image, Vec3 const direction)
+{
+	float const inv_pi = 0.318309886183790671538f;
+	float const inv_2pi = 0.159154943091895335769f;
+
+	float const u = atan2f(direction.y, direction.x) * inv_2pi;
+	float const v = acosf(direction.z) * inv_pi;
+
+	return fetch_bilinear_wrap(image, u, v);
+}
+
+float skydome_light_probability_density(Image const& image, int const x, int const y)
+{
+	int const width = image.width;
+	int const height = image.height;
+
+	float const pi = 3.14159265358979323846f;
+	float const theta_step = pi / static_cast<float>(height);
+	float const normalization_factor = (2.f * pi * pi) / static_cast<float>(width * height);
+
+	float const* const cdf_u = image.cdf_u;
+	float const* const cdf_v = image.cdf_v + x * height;
+
+	float const probability_density_u = ((x) ? cdf_u[x] - cdf_u[x-1] : cdf_u[0]) / cdf_u[width-1];
+	float const probability_density_v = ((y) ? cdf_v[y] - cdf_v[y-1] : cdf_v[0]) / cdf_v[height-1];
+
+	float const theta = (y + 0.5f) * theta_step;
+	return (probability_density_u * probability_density_v * sinf(theta)) / normalization_factor;
+}
+
+float skydome_light_probability_density(Image const& image, Vec3 const direction)
+{
+	float const inv_pi = 0.318309886183790671538f;
+	float const inv_2pi = 0.159154943091895335769f;
+	
+	float const u = atan2f(direction.y, direction.x) * inv_2pi;
+	float const v = acosf(direction.z) * inv_pi;
+
+	int const x = texel_u(image, u);
+	int const y = texel_v(image, v);
+
+	return skydome_light_probability_density(image, x, y);
+}
+
+LightSample skydome_light_sample(Image const& image, float const u1, float const u2)
+{
+	int const width = image.width;
+	int const height = image.height;
+
+	float const pi = 3.14159265358979323846f;
+	float const phi_step = (2.f * pi) / static_cast<float>(width);
+	float const theta_step = pi / static_cast<float>(height);
+
+	float const* const cdf_u = image.cdf_u;
+	float const* const pos_u = std::lower_bound(cdf_u, cdf_u + width, u1 * cdf_u[width-1]);
+	int const idx_u = pos_u - cdf_u;
+
+	float const* const cdf_v = image.cdf_v + idx_u * height;
+	float const* const pos_v = std::lower_bound(cdf_v, cdf_v + height, u2 * cdf_v[height-1]);
+	int const idx_v = pos_v - cdf_v;
+	
+	float const phi = (idx_u + 0.5f) * phi_step;
+	float const theta = (idx_v + 0.5f) * theta_step;
+	float const r = sinf(theta);
+	float const x = r * cosf(phi);
+	float const y = r * sinf(phi);
+	float const z = cosf(theta);
+
+	Vec3 const direction(x, y, z);
+	float const radius = 50.f; // TODO: fiddle with this
+
+	LightSample light_sample = {};
+	light_sample.triangle_index = kInvalidTriangle;
+	light_sample.radiance = image.pixels[idx_v * width + idx_u];
+	light_sample.point = direction * radius;
+	light_sample.normal = direction;
+	light_sample.probability_density = skydome_light_probability_density(image, idx_u, idx_v);
+	return light_sample;
 }

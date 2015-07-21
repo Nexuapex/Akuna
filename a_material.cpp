@@ -21,6 +21,11 @@ RGB operator+(RGB const lhs, RGB const rhs)
 	return RGB(lhs.r + rhs.r, lhs.g + rhs.g, lhs.b + rhs.b);
 }
 
+RGB operator-(RGB const lhs, RGB const rhs)
+{
+	return RGB(lhs.r - rhs.r, lhs.g - rhs.g, lhs.b - rhs.b);
+}
+
 RGB operator*(RGB const lhs, RGB const rhs)
 {
 	return RGB(lhs.r * rhs.r, lhs.g * rhs.g, lhs.b * rhs.b);
@@ -47,6 +52,12 @@ RGB& operator+=(RGB& lhs, RGB const rhs)
 	return lhs;
 }
 
+RGB& operator-=(RGB& lhs, RGB const rhs)
+{
+	lhs = lhs - rhs;
+	return lhs;
+}
+
 RGB& operator*=(RGB& lhs, RGB const rhs)
 {
 	lhs = lhs * rhs;
@@ -63,6 +74,11 @@ RGB& operator/=(RGB& lhs, float const s)
 {
 	lhs = lhs / s;
 	return lhs;
+}
+
+float luminance(RGB const rgb)
+{
+	return .2126f * rgb.r + .7152f * rgb.g + .0722f * rgb.b;
 }
 
 Material::Material()

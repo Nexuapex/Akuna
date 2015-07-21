@@ -82,21 +82,12 @@ TriangleSample random_triangle_sample(uint32_t const triangle_index, Scene const
 	return triangle_sample;
 }
 
-struct LightSample
-{
-	uint32_t triangle_index;
-	Vec3 point;
-	Vec3 normal;
-	float probability_density;
-	Material const* material;
-};
-
 float scene_light_probability_density(Scene const& scene)
 {
 	return 1.f / scene.light_area;
 }
 
-LightSample sample_scene_light(Scene const& scene, std::mt19937& random_engine)
+LightSample scene_light_sample(Scene const& scene, std::mt19937& random_engine)
 {
 	std::uniform_int_distribution<uint32_t> light_distrib(0u, scene.light_count - 1); // TODO: sample by area.
 	uint32_t const light_index = light_distrib(random_engine);
@@ -110,10 +101,10 @@ LightSample sample_scene_light(Scene const& scene, std::mt19937& random_engine)
 
 	LightSample light_sample = {};
 	light_sample.triangle_index = triangle_index;
+	light_sample.radiance = scene.materials[material_index].emissive;
 	light_sample.point = triangle_sample.point;
 	light_sample.normal = triangle_sample.normal;
 	light_sample.probability_density = scene_light_probability_density(scene);
-	light_sample.material = &scene.materials[material_index];
 	return light_sample;
 }
 
@@ -232,9 +223,8 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		//
 
 		{
-			LightSample const light_sample = sample_scene_light(scene, random_engine); // TODO: importance sampling.
+			LightSample const light_sample = scene_light_sample(scene, random_engine); // TODO: importance sampling.
 			Ray const light_ray(biased_point, light_sample.point - biased_point);
-			Material const& light_material = *light_sample.material;
 			float const cosine_factor = dot(light_ray.direction, intersect.normal);
 			if (cosine_factor > 0.f)
 			{
@@ -249,7 +239,7 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 
 						RGB const extended_path_throughput = path_throughput * reflectance * cosine_factor;
 						float const geometric_factor = light_cosine_factor / length_sqr(light_sample.point - biased_point);
-						RGB const explicit_path_sample = extended_path_throughput * light_material.emissive * (geometric_factor / light_sample.probability_density);
+						RGB const explicit_path_sample = extended_path_throughput * light_sample.radiance * (geometric_factor / light_sample.probability_density);
 						float const implicit_path_probability_density = forward_sampling_probability_density * geometric_factor;
 
 						float const explicit_path_weight = power_heuristic(light_sample.probability_density, implicit_path_probability_density);
