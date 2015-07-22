@@ -11,14 +11,16 @@
 
 int texel_u(Image const& image, float const u)
 {
-	float const x = (u - floorf(u)) * image.width;
-	return static_cast<int>(x + .5f);
+	int const width = image.width;
+	float const x = (u - floorf(u)) * width;
+	return static_cast<int>(x + .5f) % width;
 }
 
 int texel_v(Image const& image, float const v)
 {
-	float const y = (v - floorf(v)) * image.height;
-	return static_cast<int>(y + .5f);
+	int const height = image.height;
+	float const y = (v - floorf(v)) * height;
+	return static_cast<int>(y + .5f) % height;
 }
 
 RGB fetch_bilinear_wrap(Image const& image, float const u, float const v)
@@ -56,6 +58,62 @@ struct RGBE
 	uint8_t e;
 };
 
+void rgbe_to_rgb(RGB& rgb, RGBE const rgbe, float const gamma)
+{
+	if (rgbe.e)
+	{
+		int const exponent = rgbe.e - 128;
+		float const scale = (1.f/256.f) * ldexpf(1.f, exponent);
+		rgb.r = powf(scale * rgbe.r, gamma);
+		rgb.g = powf(scale * rgbe.g, gamma);
+		rgb.b = powf(scale * rgbe.b, gamma);
+	}
+	else
+	{
+		rgb = RGB();
+	}
+}
+
+bool read_scanline_component(FILE* const in, uint8_t* const ptr, int const length)
+{
+	int const stride = sizeof(RGBE);
+
+	for (int i = 0; i < length;)
+	{
+		int const code = getc_unlocked(in);
+		if (code == EOF) return false;
+
+		if (code > 128) // run
+		{
+			int const count = code & 0x7f;
+			if (i + count > length) return false;
+
+			int const val = getc_unlocked(in);
+			if (val == EOF) return false;
+
+			for (int j = 0; j < count; ++j)
+			{
+				ptr[i++ * stride] = static_cast<uint8_t>(val);
+			}
+		}
+		else // non-run
+		{
+			int const count = code;
+			if (i + count > length) return false;
+
+			for (int j = 0; j < count; ++j)
+			{
+				int const val = getc_unlocked(in);
+				if (val == EOF) return false;
+
+				ptr[i++ * stride] = static_cast<uint8_t>(val);
+			}
+		}
+	}
+
+	return true;
+}
+
 bool read_rgbe(char const* path, Image& image)
 {
 	FILE* const in = fopen(path, "rb");
@@ -90,29 +148,56 @@ bool read_rgbe(char const* path, Image& image)
 	image.height = height;
 	image.pixels = new RGB[width * height];
 
-	for (int y = 0; y < height; ++y)
-	{
-		RGB* scanline = image.pixels + y * width;
-		for (int x = 0; x < width; ++x)
-		{
-			RGBE rgbe;
-			if (1 != fread(&rgbe, sizeof(rgbe), 1, in))
-			{
-				return false;
-			}
+	RGBE rgbe;
 
-			RGB& rgb = scanline[x];
-			if (rgbe.e)
+	if (1 != fread(&rgbe, sizeof(rgbe), 1, in))
+	{
+		return false;
+	}
+
+	if (rgbe.r == 2 && rgbe.g == 2 && !(rgbe.b & 0x80)) // Adaptive RLE format
+	{
+		bool has_next = true;
+		for (int y = 0; y < height; ++y)
+		{
+			if (!has_next)
+				return false;
+
+			int const scanline_length = (rgbe.b << 8) | rgbe.e;
+			if (scanline_length != width)
+				return false;
+
+			RGB* const scanline_rgb = image.pixels + y * width;
+			RGBE* const scanline_rgbe = new RGBE[scanline_length];
+			if (!read_scanline_component(in, &scanline_rgbe[0].r, scanline_length))
+				return false;
+			if (!read_scanline_component(in, &scanline_rgbe[0].g, scanline_length))
+				return false;
+			if (!read_scanline_component(in, &scanline_rgbe[0].b, scanline_length))
+				return false;
+			if (!read_scanline_component(in, &scanline_rgbe[0].e, scanline_length))
+				return false;
+			for (int i = 0; i < scanline_length; ++i)
+				rgbe_to_rgb(scanline_rgb[i], scanline_rgbe[i], gamma);
+			delete [] scanline_rgbe;
+
+			has_next = (1 == fread(&rgbe, sizeof(rgbe), 1, in)) && rgbe.r == 2 && rgbe.g == 2 && !(rgbe.b & 0x80);
+		}
+	}
+	else
+	{
+		bool has_next = true;
+		for (int y = 0; y < height; ++y)
+		{
+			RGB* scanline = image.pixels + y * width;
+			for (int x = 0; x < width; ++x)
 			{
-				int const exponent = rgbe.e - 128;
-				float const scale = (1.f/256.f) * ldexpf(1.f, exponent);
-				rgb.r = powf(scale * rgbe.r, gamma);
-				rgb.g = powf(scale * rgbe.g, gamma);
-				rgb.b = powf(scale * rgbe.b, gamma);
-			}
-			else
-			{
-				rgb.r = rgb.g = rgb.b = 0.f;
+				if (!has_next)
+				{
+					return false;
+				}
+				rgbe_to_rgb(scanline[x], rgbe, gamma);
+				has_next = (1 != fread(&rgbe, sizeof(rgbe), 1, in));
 			}
 		}
 	}
