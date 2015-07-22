@@ -28,6 +28,7 @@ struct Scene
 
 	Light const* lights;
 	float light_area;
+	Image const* skydome;
 };
 
 Intersection intersect_scene(Ray const ray, Scene const& scene)
@@ -82,13 +83,38 @@ TriangleSample random_triangle_sample(uint32_t const triangle_index, Scene const
 	return triangle_sample;
 }
 
-float scene_light_probability_density(Scene const& scene)
+RGB scene_light_radiance(Scene const& scene, Vec3 const direction)
 {
+	if (scene.skydome)
+	{
+		return skydome_light_radiance(*scene.skydome, direction);
+	}
+
+	return RGB();
+}
+
+float scene_light_probability_density(Scene const& scene, Vec3 const direction)
+{
+	if (scene.skydome)
+	{
+		return skydome_light_probability_density(*scene.skydome, direction);
+	}
+
 	return 1.f / scene.light_area;
 }
 
 LightSample scene_light_sample(Scene const& scene, std::mt19937& random_engine)
 {
+	if (scene.skydome)
+	{
+		std::uniform_real_distribution<float> distrib(0.f, 1.f); // [0, 1)
+
+		float const u1 = distrib(random_engine);
+		float const u2 = distrib(random_engine);
+
+		return skydome_light_sample(*scene.skydome, u1, u2);
+	}
+
 	std::uniform_int_distribution<uint32_t> light_distrib(0u, scene.light_count - 1); // TODO: sample by area.
 	uint32_t const light_index = light_distrib(random_engine);
 	Light const& light = scene.lights[light_index];
@@ -104,7 +130,7 @@ LightSample scene_light_sample(Scene const& scene, std::mt19937& random_engine)
 	light_sample.radiance = scene.materials[material_index].emissive;
 	light_sample.point = triangle_sample.point;
 	light_sample.normal = triangle_sample.normal;
-	light_sample.probability_density = scene_light_probability_density(scene);
+	light_sample.probability_density = scene_light_probability_density(scene, Vec3());
 	return light_sample;
 }
 
@@ -196,28 +222,56 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		++path_length;
 
 		Intersection const intersect = intersect_scene(ray, scene);
+
+		// Implicit path.
+		//
+
+		{
+			bool is_implicit_path;
+			RGB radiance;
+			Vec3 point;
+			Vec3 normal;
+
+			if (intersect.valid())
+			{
+			#if 0
+				Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
+				is_implicit_path = material.is_light;
+				radiance = material.emissive;
+				point = intersect.point;
+				normal = intersect.normal;
+			#else
+				is_implicit_path = false;
+			#endif
+			}
+			else
+			{
+				is_implicit_path = true;
+				radiance = scene_light_radiance(scene, ray.direction);
+				point = ray.direction * 50.f; // TODO: this is probably wrong
+				normal = -ray.direction;
+			}
+
+			if (is_implicit_path)
+			{
+				RGB const implicit_path_sample = path_throughput * radiance;
+				float implicit_path_weight = 1.f;
+				if (path_length > 1)
+				{
+					float const geometric_factor = dot(-ray.direction, normal) / length_sqr(point - ray.origin);
+					float const implicit_path_probability_density = last_forward_sampling_probability_density * geometric_factor;
+					float const explicit_path_probability_density = scene_light_probability_density(scene, ray.direction);
+					implicit_path_weight = power_heuristic(implicit_path_probability_density, explicit_path_probability_density);
+				}
+				color += implicit_path_weight * implicit_path_sample;
+			}
+		}
+
 		if (!intersect.valid())
 			break; // Terminate the path.
 
 		Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
 		Vec3 const biased_point = intersect.point + intersect.normal * 1e-3f; // Avoid acne from self-shadowing.
-
-		// Implicit path.
-		//
-
-		if (material.is_light)
-		{
-			RGB const implicit_path_sample = path_throughput * material.emissive;
-			float implicit_path_weight = 1.f;
-			if (path_length > 1)
-			{
-				float const geometric_factor = dot(-ray.direction, intersect.normal) / length_sqr(intersect.point - ray.origin);
-				float const implicit_path_probability_density = last_forward_sampling_probability_density * geometric_factor;
-				float const explicit_path_probability_density = scene_light_probability_density(scene);
-				implicit_path_weight = power_heuristic(implicit_path_probability_density, explicit_path_probability_density);
-			}
-			color += implicit_path_weight * implicit_path_sample;
-		}
 
 		// Explicit path.
 		//
@@ -448,6 +502,15 @@ int main(int const argc, char const* const argv[])
 		fprintf(stderr, "%s\n", importer.GetErrorString());
 		return 1;
 	}
+
+	Image skydome = {};
+	if (!read_rgbe("Barcelona_Rooftops/Barce_Rooftop_C_3k.hdr", skydome))
+	{
+		fputs("Failed to read skydome image\n", stderr);
+		return 1;
+	}
+	precompute_cumulative_probability_density(skydome);
+	scene.skydome = &skydome;
 
 	std::mt19937 random_engine;
 	Vec3 const camera_position(0.f, 1.f, 4.9f);
