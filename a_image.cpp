@@ -291,8 +291,8 @@ RGB skydome_light_radiance(Image const& image, Vec3 const direction)
 	float const inv_pi = 0.318309886183790671538f;
 	float const inv_2pi = 0.159154943091895335769f;
 
-	float const u = atan2f(direction.y, direction.x) * inv_2pi;
-	float const v = acosf(direction.z) * inv_pi;
+	float const u = atan2f(direction.z, direction.x) * inv_2pi;
+	float const v = acosf(direction.y) * inv_pi;
 
 	return fetch_bilinear_wrap(image, u, v);
 }
@@ -321,8 +321,8 @@ float skydome_light_probability_density(Image const& image, Vec3 const direction
 	float const inv_pi = 0.318309886183790671538f;
 	float const inv_2pi = 0.159154943091895335769f;
 	
-	float const u = atan2f(direction.y, direction.x) * inv_2pi;
-	float const v = acosf(direction.z) * inv_pi;
+	float const u = atan2f(direction.z, direction.x) * inv_2pi;
+	float const v = acosf(direction.y) * inv_pi;
 
 	int const x = texel_u(image, u);
 	int const y = texel_v(image, v);
@@ -351,8 +351,8 @@ LightSample skydome_light_sample(Image const& image, float const u1, float const
 	float const theta = (idx_v + 0.5f) * theta_step;
 	float const r = sinf(theta);
 	float const x = r * cosf(phi);
-	float const y = r * sinf(phi);
-	float const z = cosf(theta);
+	float const z = r * sinf(phi);
+	float const y = cosf(theta);
 
 	Vec3 const direction(x, y, z);
 	float const radius = 50.f; // TODO: fiddle with this
