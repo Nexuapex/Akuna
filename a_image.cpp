@@ -45,9 +45,9 @@ RGB fetch_bilinear_wrap(Image const& image, float const u, float const v)
 	float const tx = x - static_cast<float>(x0);
 	float const ty = y - static_cast<float>(y0);
 
-	RGB const m0 = m01 + (m00 - tx*m00);
-	RGB const m1 = m11 + (m10 - tx*m10);
-	return m1 + (m0 - ty*m0);
+	RGB const m0 = m01*tx + (m00 - tx*m00);
+	RGB const m1 = m11*tx + (m10 - tx*m10);
+	return m1*ty + (m0 - ty*m0);
 }
 
 struct RGBE
@@ -361,7 +361,7 @@ LightSample skydome_light_sample(Image const& image, float const u1, float const
 	light_sample.triangle_index = kInvalidTriangle;
 	light_sample.radiance = image.pixels[idx_v * width + idx_u];
 	light_sample.point = direction * radius;
-	light_sample.normal = direction;
+	light_sample.normal = -direction;
 	light_sample.probability_density = skydome_light_probability_density(image, idx_u, idx_v);
 	return light_sample;
 }
