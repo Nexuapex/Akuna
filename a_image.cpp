@@ -290,7 +290,15 @@ void precompute_cumulative_probability_density(Image& image)
 	image.cdf_v = cdf_v;
 }
 
-RGB skydome_light_radiance(Image const& image, Vec3 const direction)
+float const kSkydomeLightRadius = 6.f;
+float const kSkydomeLightArea = 4.f * 3.14159265358979323846f * kSkydomeLightRadius * kSkydomeLightRadius;
+
+Vec3 skydome_light_point(Vec3 const direction)
+{
+	return direction * kSkydomeLightRadius;
+}
+
+SurfaceRadiance skydome_light_radiance(Image const& image, Vec3 const direction)
 {
 	float const inv_pi = 0.318309886183790671538f;
 	float const inv_2pi = 0.159154943091895335769f;
@@ -298,7 +306,12 @@ RGB skydome_light_radiance(Image const& image, Vec3 const direction)
 	float const u = atan2f(direction.z, direction.x) * inv_2pi;
 	float const v = acosf(direction.y) * inv_pi;
 
-	return fetch_bilinear_wrap(image, u, v);
+	SurfaceRadiance surface = {};
+	surface.is_light = true;
+	surface.radiance = fetch_bilinear_wrap(image, u, v);
+	surface.point = skydome_light_point(direction);
+	surface.normal = -direction;
+	return surface;
 }
 
 float skydome_light_probability_density(Image const& image, int const x, int const y)
@@ -317,7 +330,7 @@ float skydome_light_probability_density(Image const& image, int const x, int con
 	float const probability_density_v = ((y) ? cdf_v[y] - cdf_v[y-1] : cdf_v[0]) / cdf_v[height-1];
 
 	float const theta = (y + 0.5f) * theta_step;
-	return (probability_density_u * probability_density_v * sinf(theta)) / normalization_factor;
+	return (probability_density_u * probability_density_v * sinf(theta)) / (normalization_factor * kSkydomeLightArea);
 }
 
 float skydome_light_probability_density(Image const& image, Vec3 const direction)
@@ -359,12 +372,11 @@ LightSample skydome_light_sample(Image const& image, float const u1, float const
 	float const y = cosf(theta);
 
 	Vec3 const direction(x, y, z);
-	float const radius = 50.f; // TODO: fiddle with this
 
 	LightSample light_sample = {};
 	light_sample.triangle_index = kInvalidTriangle;
 	light_sample.radiance = image.pixels[idx_v * width + idx_u];
-	light_sample.point = direction * radius;
+	light_sample.point = skydome_light_point(direction);
 	light_sample.normal = -direction;
 	light_sample.probability_density = skydome_light_probability_density(image, idx_u, idx_v);
 	return light_sample;

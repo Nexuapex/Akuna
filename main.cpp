@@ -84,14 +84,16 @@ TriangleSample random_triangle_sample(uint32_t const triangle_index, Scene const
 	return triangle_sample;
 }
 
-RGB scene_light_radiance(Scene const& scene, Vec3 const direction)
+SurfaceRadiance scene_light_radiance(Scene const& scene, Vec3 const direction)
 {
 	if (scene.skydome)
 	{
 		return skydome_light_radiance(*scene.skydome, direction);
 	}
 
-	return RGB();
+	SurfaceRadiance surface = {};
+	surface.is_light = false;
+	return surface;
 }
 
 float scene_light_probability_density(Scene const& scene, Vec3 const direction)
@@ -228,38 +230,32 @@ RGB sample_image(Vec3 const camera_position, Vec3 const camera_direction, Scene 
 		//
 
 		{
-			bool is_implicit_path;
-			RGB radiance;
-			Vec3 point;
-			Vec3 normal;
+			SurfaceRadiance surface = {};
 
 			if (intersect.valid())
 			{
 			#if 0
 				Material const& material = scene.materials[scene.material_indices[intersect.triangle_index]];
-				is_implicit_path = material.is_light;
-				radiance = material.emissive;
-				point = intersect.point;
-				normal = intersect.normal;
+				surface.is_light = material.is_light;
+				surface.radiance = material.emissive;
+				surface.point = intersect.point;
+				surface.normal = intersect.normal;
 			#else
-				is_implicit_path = false;
+				surface.is_light = false;
 			#endif
 			}
 			else
 			{
-				is_implicit_path = true;
-				radiance = scene_light_radiance(scene, ray.direction);
-				point = ray.direction * 50.f; // TODO: this is probably wrong
-				normal = -ray.direction;
+				surface = scene_light_radiance(scene, ray.direction);
 			}
 
-			if (is_implicit_path)
+			if (surface.is_light)
 			{
-				RGB const implicit_path_sample = path_throughput * radiance;
+				RGB const implicit_path_sample = path_throughput * surface.radiance;
 				float implicit_path_weight = 1.f;
 				if (path_length > 1)
 				{
-					float const geometric_factor = dot(-ray.direction, normal) / length_sqr(point - ray.origin);
+					float const geometric_factor = dot(-ray.direction, surface.normal) / length_sqr(surface.point - ray.origin);
 					float const implicit_path_probability_density = last_forward_sampling_probability_density * geometric_factor;
 					float const explicit_path_probability_density = scene_light_probability_density(scene, ray.direction);
 					implicit_path_weight = power_heuristic(implicit_path_probability_density, explicit_path_probability_density);
