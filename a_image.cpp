@@ -118,6 +118,7 @@ bool read_scanline_component(FILE* const in, uint8_t* const ptr, int const lengt
 	return true;
 }
 
+// http://radiance-online.org/cgi-bin/viewcvs.cgi/ray/src/common/color.c
 bool read_rgbe(char const* path, Image& image)
 {
 	FILE* const in = fopen(path, "rb");
@@ -292,6 +293,7 @@ void precompute_cumulative_probability_density(Image& image)
 
 float const kSkydomeLightRadius = 6.f;
 float const kSkydomeLightArea = 4.f * 3.14159265358979323846f * kSkydomeLightRadius * kSkydomeLightRadius;
+float const kAngleShift = 3.65f;
 
 Vec3 skydome_light_point(Vec3 const direction)
 {
@@ -303,7 +305,7 @@ SurfaceRadiance skydome_light_radiance(Image const& image, Vec3 const direction)
 	float const inv_pi = 0.318309886183790671538f;
 	float const inv_2pi = 0.159154943091895335769f;
 
-	float const u = atan2f(direction.z, direction.x) * inv_2pi;
+	float const u = (atan2f(direction.z, direction.x) - kAngleShift) * inv_2pi;
 	float const v = acosf(direction.y) * inv_pi;
 
 	SurfaceRadiance surface = {};
@@ -338,7 +340,7 @@ float skydome_light_probability_density(Image const& image, Vec3 const direction
 	float const inv_pi = 0.318309886183790671538f;
 	float const inv_2pi = 0.159154943091895335769f;
 	
-	float const u = atan2f(direction.z, direction.x) * inv_2pi;
+	float const u = (atan2f(direction.z, direction.x) - kAngleShift) * inv_2pi;
 	float const v = acosf(direction.y) * inv_pi;
 
 	int const x = texel_u(image, u);
@@ -364,7 +366,7 @@ LightSample skydome_light_sample(Image const& image, float const u1, float const
 	float const* const pos_v = std::lower_bound(cdf_v, cdf_v + height, u2 * cdf_v[height-1]);
 	int const idx_v = static_cast<int>(pos_v - cdf_v);
 	
-	float const phi = (idx_u + 0.5f) * phi_step;
+	float const phi = (idx_u + 0.5f) * phi_step + kAngleShift;
 	float const theta = (idx_v + 0.5f) * theta_step;
 	float const r = sinf(theta);
 	float const x = r * cosf(phi);
