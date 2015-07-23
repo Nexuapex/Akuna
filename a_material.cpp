@@ -237,7 +237,7 @@ Vec3 ggx_smith_sample_incoming_direction(float const u1, float const u2, Vec3 co
 	float const pi = 3.14159265358979323846f;
 
 	float const alpha = material.roughness;
-	float const theta = atanf((alpha * sqrt(u1)) / sqrtf(1.f - u1));
+	float const theta = atanf((alpha * sqrtf(u1)) / sqrtf(1.f - u1));
 	float const phi = 2.f * pi * u2;
 	float const r = sinf(theta);
 	float const x = r * cosf(phi);

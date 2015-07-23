@@ -27,6 +27,9 @@
     <ClCompile Include="a_material.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="a_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="a_math.h">
@@ -36,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="a_material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="a_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

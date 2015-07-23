@@ -9,6 +9,10 @@
 
 #include <algorithm>
 
+#ifdef _MSC_VER
+#define getc_unlocked _getc_nolock
+#endif
+
 int texel_u(Image const& image, float const u)
 {
 	int const width = image.width;
@@ -341,11 +345,11 @@ LightSample skydome_light_sample(Image const& image, float const u1, float const
 
 	float const* const cdf_u = image.cdf_u;
 	float const* const pos_u = std::lower_bound(cdf_u, cdf_u + width, u1 * cdf_u[width-1]);
-	int const idx_u = pos_u - cdf_u;
+	int const idx_u = static_cast<int>(pos_u - cdf_u);
 
 	float const* const cdf_v = image.cdf_v + idx_u * height;
 	float const* const pos_v = std::lower_bound(cdf_v, cdf_v + height, u2 * cdf_v[height-1]);
-	int const idx_v = pos_v - cdf_v;
+	int const idx_v = static_cast<int>(pos_v - cdf_v);
 	
 	float const phi = (idx_u + 0.5f) * phi_step;
 	float const theta = (idx_v + 0.5f) * theta_step;
