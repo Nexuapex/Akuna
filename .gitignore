@@ -19,3 +19,9 @@ ipch/
 
 # Xcode metadata
 *.xccheckout
+
+# Images
+*.hdr
+*.ibl
+*.jpg
+*.zip
