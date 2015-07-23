@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include <random>
+#include <thread>
 
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -386,6 +387,36 @@ float get_scene_light_area(Scene const& scene)
 	return light_area;
 }
 
+void path_trace(Scene const& scene, Image& image)
+{
+	std::mt19937 random_engine;
+	Vec3 const camera_position(0.f, 1.f, 4.9f);
+	float const image_plane_size = 0.25f;
+
+	int const width = 256;
+	int const height = 256;
+	int const samples_per_pixel = 16;
+	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
+
+	image.width = width;
+	image.height = height;
+	image.pixels = new RGB[image.width * image.height];
+
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			for (int n = 0; n < samples_per_pixel; ++n)
+			{
+				CameraSample const camera_sample = random_camera_sample(x, y, width, height, random_engine);
+				Vec3 const image_plane_direction(camera_sample.x * image_plane_size, camera_sample.y * image_plane_size, -1.f);
+				RGB const sample = sample_image(camera_position, image_plane_direction, scene, random_engine);
+				image.pixels[y * width + x] += sample * sample_weight;
+			}
+		}
+	}
+}
+
 int main(int const argc, char const* const argv[])
 {
 	(void)argc;
@@ -512,35 +543,40 @@ int main(int const argc, char const* const argv[])
 	precompute_cumulative_probability_density(skydome);
 	scene.skydome = &skydome;
 
-	std::mt19937 random_engine;
-	Vec3 const camera_position(0.f, 1.f, 4.9f);
-	float const image_plane_size = 0.25f;
+	unsigned int const kMaxThreadCount = 16;
+	unsigned int const thread_count = std::max(std::min(std::thread::hardware_concurrency(), kMaxThreadCount) - 1u, 1u);
+	Image images[kMaxThreadCount] = {};
 
-	int const width = 256;
-	int const height = 256;
-	int const samples_per_pixel = 16;
-	float const sample_weight = 1.f / static_cast<float>(samples_per_pixel);
-
-	Image image = {};
-	image.width = width;
-	image.height = height;
-	image.pixels = new RGB[image.width * image.height];
-
-	for (int y = 0; y < height; ++y)
+	std::vector<std::thread> threads;
+	threads.reserve(thread_count);
+	for (unsigned int thread_index = 0; thread_index < thread_count; ++thread_index)
 	{
-		for (int x = 0; x < width; ++x)
-		{
-			for (int n = 0; n < samples_per_pixel; ++n)
-			{
-				CameraSample const camera_sample = random_camera_sample(x, y, width, height, random_engine);
-				Vec3 const image_plane_direction(camera_sample.x * image_plane_size, camera_sample.y * image_plane_size, -1.f);
-				RGB const sample = sample_image(camera_position, image_plane_direction, scene, random_engine);
-				image.pixels[y * width + x] += sample * sample_weight;
-			}
-		}
+		Image& image = images[thread_index];
+		threads.emplace_back([&scene, &image]() { path_trace(scene, image); });
+	}
+	for (std::thread& thread : threads)
+	{
+		thread.join();
 	}
 
-	if (!write_rgbe("test.hdr", image))
+	Image& final_image = images[0];
+	int const pixel_count = final_image.width * final_image.height;
+	float const image_weight = 1.f / static_cast<float>(thread_count);
+
+	for (unsigned int thread_index = 1; thread_index < thread_count; ++thread_index)
+	{
+		Image const& image = images[thread_index];
+		for (int i = 0; i < pixel_count; ++i)
+		{
+			final_image.pixels[i] += image.pixels[i];
+		}
+	}
+	for (int i = 0; i < pixel_count; ++i)
+	{
+		final_image.pixels[i] *= image_weight;
+	}
+
+	if (!write_rgbe("test.hdr", final_image))
 	{
 		fputs("Failed to write image\n", stderr);
 		return 1;
