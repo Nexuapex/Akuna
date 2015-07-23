@@ -60,22 +60,22 @@ newmtl backWall
 
 
 newmtl shortBox
-  Ns 10.0000
-  Ni 1.0000
+  Ns 200.0000
+  Ni 1.4400
   illum 2
   Ka 0.725 0.71 0.68 # White
-  Kd 0.725 0.71 0.68
-  Ks 0 0 0
+  Kd 0 0 0
+  Ks 0.725 0.71 0.68
   Ke 0 0 0
   
 
 newmtl tallBox
-  Ns 10.0000
-  Ni 1.0000
+  Ns 200.0000
+  Ni 1.4400
   illum 2
   Ka 0.725 0.71 0.68 # White
-  Kd 0.725 0.71 0.68
-  Ks 0 0 0
+  Kd 0 0 0
+  Ks 0.725 0.71 0.68
   Ke 0 0 0
 
 
